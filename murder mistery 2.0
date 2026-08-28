@@ -1,6 +1,6 @@
 --[[
-    MM2 ELITE HUB v7.3 - FULLY WORKING
-    Fling, Kill Aura, Auto Shoot, Auto Grab Gun - Tutto fixato
+    MM2 ELITE HUB v7.4 - WORKING FLING EDITION
+    Fling, Kill Aura, Auto Shoot - Tutto fixato
 ]]
 
 local Players = game:GetService("Players")
@@ -14,6 +14,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local CoreGui = game:GetService("CoreGui")
+local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -23,7 +24,7 @@ local Mouse = LocalPlayer:GetMouse()
 local Settings = {
     Murder = { KillAura = false, KillAuraRange = 12, AutoKillVisible = false, AutoKillRange = 50 },
     Sheriff = { InstantKill = false, AutoShoot = false, ShootRange = 200 },
-    Fling = { Enabled = false, Target = nil, Power = 1000, AntiFling = false, SpecificTarget = nil },
+    Fling = { Enabled = false, Target = nil, Power = 5000, AntiFling = false, SpecificTarget = nil }, -- Power aumentato a 5000
     ESP = { Enabled = false, Boxes = true, Names = true, Distance = true, Roles = true, Tracers = false, MaxDistance = 1500 },
     Movement = { Speed = 16, Jump = 50, Fly = false, FlySpeed = 60, NoClip = false, InfiniteJump = false, AutoSprint = false },
     Farming = { AutoFarm = false, SmartFarm = true, CoinMagnet = false, MagnetRange = 60, AutoGrabGun = false, FarmSpeed = 250 },
@@ -36,6 +37,7 @@ local LastUpdate = 0
 local LastStab = 0
 local LastShoot = 0
 local SavedPosition = nil
+local PlayerButtons = {}
 
 --// UTILITY
 local function GetCharacter(player) return player and player.Character end
@@ -70,52 +72,81 @@ local function GetSheriff()
     return nil
 end
 
---// FLING SYSTEM (FUNZIONANTE)
+--// FLING SYSTEM (SOLIX STYLE - FUNZIONANTE)
 local function FlingPlayer(target)
-    if not target then return end
+    if not target then 
+        print("Fling: Target is nil")
+        return 
+    end
+    
     local targetChar = GetCharacter(target)
-    if not targetChar then return end
+    if not targetChar then 
+        print("Fling: Target has no character")
+        return 
+    end
+    
     local targetRoot = GetRootPart(targetChar)
-    if not targetRoot then return end
+    if not targetRoot then 
+        print("Fling: Target has no HumanoidRootPart")
+        return 
+    end
     
     local myChar = GetCharacter(LocalPlayer)
     local myRoot = GetRootPart(myChar)
-    if not myRoot then return end
+    if not myRoot then 
+        print("Fling: LocalPlayer has no HumanoidRootPart")
+        return 
+    end
     
-    -- Calcola direzione
+    -- Calcola direzione (lontano da te)
     local direction = (targetRoot.Position - myRoot.Position).Unit
-    local flingForce = direction * Settings.Fling.Power + Vector3.new(0, Settings.Fling.Power * 0.8, 0)
+    local power = Settings.Fling.Power
     
-    -- Crea BodyVelocity (metodo classico che funziona in MM2)
+    print("Flinging " .. target.Name .. " with power " .. power)
+    
+    -- Rimuovi eventuali vecchi BodyVelocity
+    for _, child in pairs(targetRoot:GetChildren()) do
+        if child:IsA("BodyVelocity") and child.Name == "Fling" then
+            child:Destroy()
+        end
+    end
+    
+    -- Crea BodyVelocity con MASSIMA forza (stile Solix)
     local bv = Instance.new("BodyVelocity")
-    bv.Name = "FlingVelocity"
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = flingForce
+    bv.Name = "Fling"
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge) -- Forza illimitata
+    bv.Velocity = direction * power + Vector3.new(0, power * 0.8, 0)
     bv.Parent = targetRoot
     
-    -- Applica anche AssemblyLinearVelocity (metodo moderno)
-    targetRoot.AssemblyLinearVelocity = flingForce
+    -- Applica anche rotazione casuale per far girare il target
     targetRoot.AssemblyAngularVelocity = Vector3.new(
-        math.random(-100, 100),
-        math.random(-100, 100),
-        math.random(-100, 100)
+        math.random(-200, 200),
+        math.random(-200, 200),
+        math.random(-200, 200)
     )
     
-    -- Mantieni il fling attivo per 1 secondo con spam
+    -- Loop aggressivo che mantiene la velocity (stile Solix)
     task.spawn(function()
-        local start = tick()
-        while tick() - start < 1 do
+        local startTime = tick()
+        while tick() - startTime < 1.2 do -- 1.2 secondi di fling
             if targetRoot and targetRoot.Parent then
-                targetRoot.AssemblyLinearVelocity = flingForce
-                targetRoot.AssemblyAngularVelocity = Vector3.new(
-                    math.random(-80, 80),
-                    math.random(-80, 80),
-                    math.random(-80, 80)
-                )
+                -- Aggiorna continuamente la direction in base alla posizione attuale
+                local newDirection = (targetRoot.Position - myRoot.Position).Unit
+                bv.Velocity = newDirection * power + Vector3.new(0, power * 0.5, 0)
+                
+                -- Mantieni anche AssemblyLinearVelocity come backup
+                targetRoot.AssemblyLinearVelocity = bv.Velocity
+            else
+                break
             end
-            task.wait(0.03)
+            task.wait(0.01) -- 100Hz di aggiornamento (molto aggressivo)
         end
-        if bv then bv:Destroy() end
+        
+        -- Rimuovi BodyVelocity dopo 1.2 secondi
+        if bv and bv.Parent then
+            bv:Destroy()
+        end
+        print("Fling ended for " .. target.Name)
     end)
 end
 
@@ -518,7 +549,7 @@ function UI:CreatePlayerButton(parent, player, callback, accent)
 end
 
 --// CREATE UI
-local Window = UI:CreateWindow("❄️ MM2 ELITE HUB v7.3")
+local Window = UI:CreateWindow("❄️ MM2 ELITE HUB v7.4")
 
 local MurderColor = Color3.fromRGB(255, 50, 50)
 local SheriffColor = Color3.fromRGB(50, 100, 255)
@@ -551,7 +582,7 @@ UI:CreateSlider(sheriffSec, "Shoot Range", 50, 500, 200, function(v) Settings.Sh
 --// === FLING SECTION ===
 local flingSec = UI:CreateSection(FlingTab, "🚀 FLING CONTROLS", FlingColor)
 
--- Quick Fling Buttons (FUNZIONANTI)
+-- Quick Fling Buttons
 UI:CreateButton(flingSec, "Fling Murderer", function()
     local murderer = GetMurderer()
     if murderer then
@@ -570,10 +601,10 @@ UI:CreateButton(flingSec, "Fling Sheriff", function()
     end
 end, Color3.fromRGB(50, 100, 255))
 
-UI:CreateSlider(flingSec, "Fling Power", 100, 5000, 2000, function(v) Settings.Fling.Power = v end, FlingColor)
+UI:CreateSlider(flingSec, "Fling Power", 1000, 10000, 5000, function(v) Settings.Fling.Power = v end, FlingColor)
 UI:CreateToggle(flingSec, "Anti Fling (God Mode)", false, function(v) Settings.Fling.AntiFling = v end, FlingColor)
 
--- Player List (FUNZIONANTE)
+-- Player List
 local playerListSec = UI:CreateSection(FlingTab, "👥 CLICK TO FLING PLAYER", FlingColor)
 local playerListFrame = Instance.new("ScrollingFrame")
 playerListFrame.Size = UDim2.new(1, 0, 0, 250)
@@ -594,17 +625,12 @@ plPadding.PaddingRight = UDim.new(0, 10)
 plPadding.PaddingTop = UDim.new(0, 10)
 plPadding.Parent = playerListFrame
 
--- Variabile per tenere traccia dei bottoni
-local PlayerButtons = {}
-
 local function UpdatePlayerList()
-    -- Rimuovi vecchi bottoni
     for _, btn in pairs(PlayerButtons) do
         if btn then btn:Destroy() end
     end
     PlayerButtons = {}
     
-    -- Crea nuovi bottoni
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local btn = UI:CreatePlayerButton(playerListFrame, player, function(p)
@@ -614,7 +640,6 @@ local function UpdatePlayerList()
         end
     end
     
-    -- Aggiorna canvas size
     playerListFrame.CanvasSize = UDim2.new(0, 0, 0, plLayout.AbsoluteContentSize.Y + 20)
 end
 
@@ -656,15 +681,10 @@ local farmSec = UI:CreateSection(FarmTab, "💰 FARMING", FarmColor)
 UI:CreateToggle(farmSec, "Auto Farm Coins", false, function(v) Settings.Farming.AutoFarm = v end, FarmColor)
 UI:CreateToggle(farmSec, "Smart Farm (Safe)", true, function(v) Settings.Farming.SmartFarm = v end, FarmColor)
 UI:CreateToggle(farmSec, "Coin Magnet", false, function(v) Settings.Farming.CoinMagnet = v end, FarmColor)
-
--- AUTO GRAB GUN FIXATA (Salva posizione, prendi, torna)
 UI:CreateToggle(farmSec, "Auto Grab Gun (TP + Return)", false, function(v) 
     Settings.Farming.AutoGrabGun = v 
-    if v then
-        SavedPosition = nil -- Reset quando attivi
-    end
+    if v then SavedPosition = nil end
 end, FarmColor)
-
 UI:CreateSlider(farmSec, "Magnet Range", 10, 150, 60, function(v) Settings.Farming.MagnetRange = v end, FarmColor)
 UI:CreateSlider(farmSec, "Farm Speed", 50, 500, 250, function(v) Settings.Farming.FarmSpeed = v end, FarmColor)
 
@@ -800,12 +820,10 @@ task.spawn(function()
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         if not remotes then continue end
         
-        -- Equip knife se in backpack
         if LocalPlayer.Backpack:FindFirstChild("Knife") and char:FindFirstChild("Humanoid") then
             char.Humanoid:EquipTool(LocalPlayer.Backpack.Knife)
         end
         
-        -- Kill Aura
         if Settings.Murder.KillAura and tick() - LastStab > 0.3 then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
@@ -826,7 +844,6 @@ task.spawn(function()
             end
         end
         
-        -- Auto Kill Visible
         if Settings.Murder.AutoKillVisible and tick() - LastStab > 0.5 then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
@@ -1063,7 +1080,7 @@ task.spawn(function()
     end
 end)
 
--- AUTO GRAB GUN FIXATA (Salva pos, prendi, torna)
+-- AUTO GRAB GUN FIXATA
 task.spawn(function()
     while task.wait(0.1) do
         if not Settings.Farming.AutoGrabGun then continue end
@@ -1072,31 +1089,26 @@ task.spawn(function()
         local root = GetRootPart(char)
         if not root then continue end
         
-        -- Cerca la gun nello workspace
         for _, obj in pairs(Workspace:GetDescendants()) do
             if obj.Name == "Gun" or obj.Name:lower():match("gun") or obj.Name:lower():match("pistol") then
                 if obj:IsA("BasePart") or obj:IsA("MeshPart") then
                     local dist = (obj.Position - root.Position).Magnitude
                     if dist < 300 then
-                        -- Salva posizione attuale se non già salvata
                         if not SavedPosition then
                             SavedPosition = root.CFrame
                         end
                         
-                        -- Teleport istantaneo alla gun
                         root.CFrame = obj.CFrame
                         
-                        -- Tocca la gun (prova entrambi i metodi)
                         pcall(function()
                             firetouchinterest(root, obj, 0)
                             firetouchinterest(root, obj, 1)
                         end)
                         
-                        -- Torna indietro immediatamente
                         if SavedPosition then
-                            task.wait(0.05) -- Piccolo delay per assicurare raccolta
+                            task.wait(0.05)
                             root.CFrame = SavedPosition
-                            SavedPosition = nil -- Reset per prossima volta
+                            SavedPosition = nil
                         end
                         
                         break
@@ -1132,7 +1144,6 @@ Players.PlayerRemoving:Connect(function(p)
     UpdatePlayerList()
 end)
 
--- Setup iniziale
 Window.Tabs[1].Content.Visible = true
 Window.Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(50, 55, 70)
 Window.Tabs[1].TextLabel.TextColor3 = MurderColor
@@ -1140,7 +1151,6 @@ Window.CurrentTab = Window.Tabs[1]
 
 UpdatePlayerList()
 
--- Notifica
 local notif = Instance.new("Frame")
 notif.Size = UDim2.new(0, 320, 0, 90)
 notif.Position = UDim2.new(1, 20, 1, -110)
@@ -1154,7 +1164,7 @@ local nt = Instance.new("TextLabel")
 nt.Size = UDim2.new(1, -20, 1, 0)
 nt.Position = UDim2.new(0, 10, 0, 0)
 nt.BackgroundTransparency = 1
-nt.Text = "❄️ MM2 ELITE HUB v7.3\n✅ Fling & Auto Grab Gun Fixed\n✅ All Features Operational\nPress INSERT to toggle"
+nt.Text = "❄️ MM2 ELITE HUB v7.4\n✅ SOLIX STYLE FLING LOADED\n✅ Power: 5000 (Adjustable)\nPress INSERT to toggle"
 nt.TextColor3 = Color3.fromRGB(150, 220, 255)
 nt.TextSize = 14
 nt.Font = Enum.Font.GothamBold
@@ -1165,4 +1175,4 @@ TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -340, 1,
 task.wait(5)
 TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -110)}):Play()
 
-print("✅ MM2 ELITE HUB v7.3 - All Systems Operational")
+print("✅ MM2 ELITE HUB v7.4 - Solix Style Fling Loaded")
