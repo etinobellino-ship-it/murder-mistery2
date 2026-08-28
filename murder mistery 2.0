@@ -1,7 +1,6 @@
 --[[
-    MM2 PREMIUM HUB v4.0
-    Inspired by Solix & Snowy Hub
-    Clean, Fast, Working
+    MM2 PREMIUM HUB v4.1 - ICE DRAGON EDITION
+    Toggle con bottone drago circolare
 --]]
 
 local Players = game:GetService("Players")
@@ -19,7 +18,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
---// UI LIBRARY (Custom)
+--// UI LIBRARY
 local Library = {}
 
 function Library:CreateWindow(title)
@@ -29,7 +28,77 @@ function Library:CreateWindow(title)
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.ResetOnSpawn = false
     
-    -- Main Frame
+    --// ICE DRAGON TOGGLE BUTTON (in alto a destra)
+    local DragonButton = Instance.new("TextButton")
+    DragonButton.Name = "DragonToggle"
+    DragonButton.Size = UDim2.new(0, 60, 0, 60)
+    DragonButton.Position = UDim2.new(1, -80, 0, 20)
+    DragonButton.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+    DragonButton.Text = "🐉"
+    DragonButton.TextSize = 35
+    DragonButton.Visible = false
+    DragonButton.Parent = ScreenGui
+    
+    -- Cerchio perfetto
+    local DragonCorner = Instance.new("UICorner")
+    DragonCorner.CornerRadius = UDim.new(1, 0)
+    DragonCorner.Parent = DragonButton
+    
+    -- Bordo ghiaccio
+    local DragonStroke = Instance.new("UIStroke")
+    DragonStroke.Color = Color3.fromRGB(200, 240, 255)
+    DragonStroke.Thickness = 3
+    DragonStroke.Parent = DragonButton
+    
+    -- Ombra drago
+    local DragonShadow = Instance.new("ImageLabel")
+    DragonShadow.Name = "Shadow"
+    DragonShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    DragonShadow.BackgroundTransparency = 1
+    DragonShadow.Position = UDim2.new(0.5, 0, 0.5, 4)
+    DragonShadow.Size = UDim2.new(1, 15, 1, 15)
+    DragonShadow.ZIndex = -1
+    DragonShadow.Image = "rbxassetid://5554236805"
+    DragonShadow.ImageColor3 = Color3.fromRGB(0, 100, 150)
+    DragonShadow.ImageTransparency = 0.4
+    DragonShadow.ScaleType = Enum.ScaleType.Slice
+    DragonShadow.SliceCenter = Rect.new(23, 23, 277, 277)
+    DragonShadow.Parent = DragonButton
+    
+    -- Effetto glow
+    local Glow = Instance.new("ImageLabel")
+    Glow.Name = "Glow"
+    Glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    Glow.BackgroundTransparency = 1
+    Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Glow.Size = UDim2.new(1.5, 0, 1.5, 0)
+    Glow.ZIndex = -2
+    Glow.Image = "rbxassetid://10822615828"
+    Glow.ImageColor3 = Color3.fromRGB(150, 220, 255)
+    Glow.ImageTransparency = 0.7
+    Glow.Parent = DragonButton
+    
+    -- Animazione pulse
+    spawn(function()
+        while DragonButton do
+            if DragonButton.Visible then
+                TweenService:Create(Glow, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.new(1.8, 0, 1.8, 0),
+                    ImageTransparency = 0.9
+                }):Play()
+                wait(1)
+                TweenService:Create(Glow, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.new(1.5, 0, 1.5, 0),
+                    ImageTransparency = 0.7
+                }):Play()
+                wait(1)
+            else
+                wait(0.5)
+            end
+        end
+    end)
+    
+    --// Main Frame
     local Main = Instance.new("Frame")
     Main.Name = "Main"
     Main.Size = UDim2.new(0, 550, 0, 350)
@@ -56,7 +125,7 @@ function Library:CreateWindow(title)
     Shadow.SliceCenter = Rect.new(23, 23, 277, 277)
     Shadow.Parent = Main
     
-    -- Top Bar
+    --// Top Bar
     local TopBar = Instance.new("Frame")
     TopBar.Size = UDim2.new(1, 0, 0, 35)
     TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
@@ -91,14 +160,14 @@ function Library:CreateWindow(title)
     Version.Size = UDim2.new(0, 50, 1, 0)
     Version.Position = UDim2.new(0, 150, 0, 0)
     Version.BackgroundTransparency = 1
-    Version.Text = "v4.0"
-    Version.TextColor3 = Color3.fromRGB(100, 150, 255)
+    Version.Text = "v4.1"
+    Version.TextColor3 = Color3.fromRGB(100, 180, 255)
     Version.TextSize = 12
     Version.Font = Enum.Font.Gotham
     Version.TextXAlignment = Enum.TextXAlignment.Left
     Version.Parent = TopBar
     
-    -- Close Button
+    -- Close Button (ora nasconde e mostra drago)
     local Close = Instance.new("TextButton")
     Close.Size = UDim2.new(0, 25, 0, 25)
     Close.Position = UDim2.new(1, -35, 0, 5)
@@ -128,7 +197,7 @@ function Library:CreateWindow(title)
     MinCorner.CornerRadius = UDim.new(0, 6)
     MinCorner.Parent = Minimize
     
-    -- Tab Buttons Container
+    --// Tab Buttons Container
     local TabButtons = Instance.new("Frame")
     TabButtons.Size = UDim2.new(0, 130, 1, -35)
     TabButtons.Position = UDim2.new(0, 0, 0, 35)
@@ -149,13 +218,68 @@ function Library:CreateWindow(title)
     local Window = {
         ScreenGui = ScreenGui,
         Main = Main,
+        DragonButton = DragonButton,
         TabButtons = TabButtons,
         TabContent = TabContent,
         Tabs = Tabs,
         CurrentTab = nil
     }
     
-    -- Dragging
+    --// TOGGLE SYSTEM
+    local function ToggleGUI(show)
+        Main.Visible = show
+        DragonButton.Visible = not show
+        
+        if not show then
+            -- Animazione uscita
+            TweenService:Create(Main, TweenInfo.new(0.3), {
+                Size = UDim2.new(0, 550, 0, 0),
+                Position = UDim2.new(0.5, -275, 0.5, -175)
+            }):Play()
+            wait(0.3)
+            Main.Size = UDim2.new(0, 550, 0, 350)
+        else
+            -- Animazione entrata drago
+            DragonButton.Size = UDim2.new(0, 40, 0, 40)
+            TweenService:Create(DragonButton, TweenInfo.new(0.3), {
+                Size = UDim2.new(0, 60, 0, 60)
+            }):Play()
+        end
+    end
+    
+    -- Close -> mostra drago
+    Close.MouseButton1Click:Connect(function()
+        ToggleGUI(false)
+    end)
+    
+    -- Drago -> mostra GUI
+    DragonButton.MouseButton1Click:Connect(function()
+        ToggleGUI(true)
+    end)
+    
+    -- Hover effect drago
+    DragonButton.MouseEnter:Connect(function()
+        TweenService:Create(DragonButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(130, 200, 255),
+            Size = UDim2.new(0, 65, 0, 65)
+        }):Play()
+    end)
+    
+    DragonButton.MouseLeave:Connect(function()
+        TweenService:Create(DragonButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(100, 180, 255),
+            Size = UDim2.new(0, 60, 0, 60)
+        }):Play()
+    end)
+    
+    -- Insert key
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.Insert then
+            ToggleGUI(not Main.Visible)
+        end
+    end)
+    
+    --// Dragging
     local dragging = false
     local dragStart, startPos
     
@@ -180,24 +304,13 @@ function Library:CreateWindow(title)
         end
     end)
     
-    -- Close/Minimize
+    -- Minimize
     local minimized = false
     Minimize.MouseButton1Click:Connect(function()
         minimized = not minimized
         TabContent.Visible = not minimized
         TabButtons.Visible = not minimized
         Minimize.Text = minimized and "+" or "−"
-    end)
-    
-    Close.MouseButton1Click:Connect(function()
-        ScreenGui.Enabled = false
-    end)
-    
-    -- Toggle with Insert
-    UserInputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.Insert then
-            ScreenGui.Enabled = not ScreenGui.Enabled
-        end
     end)
     
     return Window
@@ -238,7 +351,7 @@ function Library:CreateTab(window, name, icon)
     content.Size = UDim2.new(1, 0, 1, 0)
     content.BackgroundTransparency = 1
     content.ScrollBarThickness = 3
-    content.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 255)
+    content.ScrollBarImageColor3 = Color3.fromRGB(100, 180, 255)
     content.Visible = false
     content.Parent = window.TabContent
     
@@ -253,29 +366,20 @@ function Library:CreateTab(window, name, icon)
     padding.PaddingBottom = UDim.new(0, 15)
     padding.Parent = content
     
-    local tab = {
-        Button = btn,
-        Content = content,
-        TextLabel = textLabel
-    }
-    
+    local tab = {Button = btn, Content = content, TextLabel = textLabel}
     table.insert(window.Tabs, tab)
     
     btn.MouseButton1Click:Connect(function()
         if window.CurrentTab == tab then return end
-        
-        -- Hide all
         for _, t in pairs(window.Tabs) do
             t.Content.Visible = false
             t.Button.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
             t.TextLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
         end
-        
-        -- Show selected
         window.CurrentTab = tab
         content.Visible = true
         btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-        textLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
+        textLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
     end)
     
     return content
@@ -292,7 +396,7 @@ function Library:CreateSection(parent, title)
     label.Size = UDim2.new(1, 0, 0, 20)
     label.BackgroundTransparency = 1
     label.Text = title
-    label.TextColor3 = Color3.fromRGB(100, 150, 255)
+    label.TextColor3 = Color3.fromRGB(100, 180, 255)
     label.TextSize = 14
     label.Font = Enum.Font.GothamBold
     label.TextXAlignment = Enum.TextXAlignment.Left
@@ -343,7 +447,7 @@ function Library:CreateToggle(parent, text, default, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 45, 0, 22)
     btn.Position = UDim2.new(1, -45, 0.5, -11)
-    btn.BackgroundColor3 = default and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 65)
+    btn.BackgroundColor3 = default and Color3.fromRGB(0, 200, 150) or Color3.fromRGB(60, 60, 65)
     btn.Text = ""
     btn.Parent = toggle
     
@@ -366,7 +470,7 @@ function Library:CreateToggle(parent, text, default, callback)
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
         TweenService:Create(btn, TweenInfo.new(0.2), {
-            BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 65)
+            BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 150) or Color3.fromRGB(60, 60, 65)
         }):Play()
         TweenService:Create(circle, TweenInfo.new(0.2), {
             Position = enabled and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
@@ -398,7 +502,7 @@ function Library:CreateSlider(parent, text, min, max, default, callback)
     value.Position = UDim2.new(0.6, 0, 0, 0)
     value.BackgroundTransparency = 1
     value.Text = tostring(default)
-    value.TextColor3 = Color3.fromRGB(100, 150, 255)
+    value.TextColor3 = Color3.fromRGB(100, 180, 255)
     value.TextSize = 13
     value.Font = Enum.Font.GothamBold
     value.TextXAlignment = Enum.TextXAlignment.Right
@@ -417,7 +521,7 @@ function Library:CreateSlider(parent, text, min, max, default, callback)
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
     fill.BorderSizePixel = 0
     fill.Parent = track
     
@@ -475,7 +579,7 @@ end
 function Library:CreateButton(parent, text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 13
@@ -487,11 +591,11 @@ function Library:CreateButton(parent, text, callback)
     corner.Parent = btn
     
     btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(120, 170, 255)}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(130, 200, 255)}):Play()
     end)
     
     btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 150, 255)}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 180, 255)}):Play()
     end)
     
     btn.MouseButton1Click:Connect(callback)
@@ -500,7 +604,7 @@ function Library:CreateButton(parent, text, callback)
 end
 
 --// CREATE UI
-local Window = Library:CreateWindow("MM2 PREMIUM HUB")
+local Window = Library:CreateWindow("❄️ MM2 ICE HUB")
 
 --// TABS
 local CombatTab = Library:CreateTab(Window, "Combat", "⚔️")
@@ -915,16 +1019,16 @@ end)
 -- Select first tab
 Window.Tabs[1].Content.Visible = true
 Window.Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-Window.Tabs[1].TextLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
+Window.Tabs[1].TextLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
 Window.CurrentTab = Window.Tabs[1]
 
 UpdatePlayerList()
 
 -- Notification
 local notif = Instance.new("Frame")
-notif.Size = UDim2.new(0, 250, 0, 60)
-notif.Position = UDim2.new(1, 20, 1, -80)
-notif.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+notif.Size = UDim2.new(0, 280, 0, 70)
+notif.Position = UDim2.new(1, 20, 1, -90)
+notif.BackgroundColor3 = Color3.fromRGB(35, 40, 50)
 notif.BorderSizePixel = 0
 notif.Parent = Window.ScreenGui
 
@@ -936,15 +1040,15 @@ local nt = Instance.new("TextLabel")
 nt.Size = UDim2.new(1, -20, 1, 0)
 nt.Position = UDim2.new(0, 15, 0, 0)
 nt.BackgroundTransparency = 1
-nt.Text = "✅ MM2 Hub Loaded!\nPress INSERT to toggle"
-nt.TextColor3 = Color3.fromRGB(100, 255, 100)
+nt.Text = "❄️ MM2 Ice Hub Loaded!\nClick the dragon or press INSERT"
+nt.TextColor3 = Color3.fromRGB(150, 220, 255)
 nt.TextSize = 14
 nt.Font = Enum.Font.GothamBold
 nt.TextWrapped = true
 nt.Parent = notif
 
-TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -270, 1, -80)}):Play()
+TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -300, 1, -90)}):Play()
 wait(3)
-TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -80)}):Play()
+TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -90)}):Play()
 
-print("MM2 Premium Hub v4.0 Loaded!")
+print("❄️ MM2 Ice Hub v4.1 Loaded!")
