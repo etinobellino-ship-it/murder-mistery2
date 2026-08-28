@@ -1,6 +1,6 @@
 -- [[ NEGRO DI FIDUCIA HUB - COMBAT EDITION ]] --
--- Optimized for: Xeno Executor | Low-End PC
--- Features: Role-Based ESP (Red/Blue/White), Insta-Kill Sheriff, Advanced Murderer Aura
+-- Fixed ESP: Dynamic Role Detection (Inventory Scan)
+-- Optimized for: Xeno Executor
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -33,7 +33,7 @@ local Theme = {
     InnocentColor = Color3.fromRGB(255, 255, 255) -- BIANCO
 }
 
--- // GUI SETUP
+-- // GUI SETUP (Mantengo la tua struttura originale)
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local SideBar = Instance.new("Frame")
@@ -164,15 +164,10 @@ for i, tabData in ipairs(tabs) do
 end
 
 -- // FEATURES IMPLEMENTATION
-
--- [ MAIN ]
 CreateToggle("Fly", false, MainTab, function(v) Settings.FlyEnabled = v end)
 CreateToggle("Speed Boost", false, MainTab, function(v) Settings.WalkSpeed = v and 60 or 16 end)
-
--- [ VISUALS ] (Murder Rosso / Sceriffo Blu / Innocenti Bianchi)
 CreateToggle("Role ESP", false, VisualTab, function(v) Settings.EspEnabled = v end)
 
--- [ COMBAT ]
 local SheriffLabel = Instance.new("TextLabel", CombatTab)
 SheriffLabel.Text = "--- SHERIFF SECTION ---"; SheriffLabel.Size = UDim2.new(1,0,0,20); SheriffLabel.TextColor3 = Theme.SheriffColor; SheriffLabel.BackgroundTransparency = 1
 
@@ -185,7 +180,37 @@ CreateToggle("Kill Aura", false, CombatTab, function(v) Settings.KillAura = v en
 CreateToggle("Knife Throw Aura (Auto)", false, CombatTab, function(v) Settings.KnifeThrowAura = v end)
 CreateSlider("Aura Range", 10, 100, 20, CombatTab, function(v) Settings.AuraRange = v end)
 
--- // LOGIC ENGINE
+-- // LOGIC ENGINE (SISTEMA DI RILEVAMENTO RUOLI AVANZATO)
+
+-- Funzione per determinare il ruolo basandosi sull'inventario fisico e attributi
+local function GetPlayerRole(player)
+    if not player or not player.Character then return "Innocent" end
+    
+    -- Metodo 1: Controllo Attributi (Se presenti)
+    local roleAttr = player:GetAttribute("Role")
+    if roleAttr then return roleAttr end
+
+    -- Metodo 2: Scansione Personaggio (Cerca l'arma fisica)
+    for _, item in pairs(player.Character:GetChildren()) do
+        if item:IsA("Tool") then
+            if item.Name:lower():find("knife") then return "Murderer" end
+            if item.Name:lower():find("gun") or item.Name:lower():find("revolver") then return "Sheriff" end
+        end
+    end
+
+    -- Metodo 3: Controllo Backpack (Se l'arma è equipaggiata ma non ancora nel char)
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        for _, item in pairs(bp:GetChildren()) do
+            if item:IsA("Tool") then
+                if item.Name:lower():find("knife") then return "Murderer" end
+                if item.Name:lower():find("gun") or item.Name:lower():find("revolver") then return "Sheriff" end
+            end
+        end
+    end
+
+    return "Innocent"
+end
 
 local function IsVisible(target)
     local origin = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new()
@@ -204,7 +229,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         local mouseTarget = LocalPlayer:GetMouse().Target
         if mouseTarget and mouseTarget.Parent:FindFirstChild("Humanoid") then
             local targetPlayer = Players:GetPlayerFromCharacter(mouseTarget.Parent)
-            if targetPlayer and targetPlayer:GetAttribute("Role") == "Murderer" and IsVisible(targetPlayer) then
+            if targetPlayer and GetPlayerRole(targetPlayer) == "Murderer" and IsVisible(targetPlayer) then
                 for _, v in pairs(RepStorage:GetDescendants()) do
                     if v:IsA("RemoteEvent") and v.Name:lower():find("shoot") then v:FireServer(targetPlayer) end
                 end
@@ -220,7 +245,7 @@ RunService.Heartbeat:Connect(function()
 
     if Settings.KillAura or Settings.KnifeThrowAura then
         local char = LocalPlayer.Character
-        if char and (char:FindFirstChild("Knife") or LocalPlayer:GetAttribute("Role") == "Murderer") then
+        if char and (char:FindFirstChild("Knife") or GetPlayerRole(LocalPlayer) == "Murderer") then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                     local dist = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
@@ -241,16 +266,20 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ESP ROLE COLORS logic (Fixed here)
+-- // ESP ROLE COLORS (RISSCRITTO COMPLETAMENTE PER FUNZIONARE)
 RunService.RenderStepped:Connect(function()
     if Settings.EspEnabled then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
+                -- Crea o recupera l'Highlight
                 local hl = p.Character:FindFirstChild("XenoESP") or Instance.new("Highlight", p.Character)
                 hl.Name = "XenoESP"
                 hl.Enabled = true
-                
-                local role = p:GetAttribute("Role")
+                hl.FillTransparency = 0.4
+                hl.OutlineTransparency = 0
+
+                -- Rileva il ruolo dinamicamente ogni frame
+                local role = GetPlayerRole(p)
                 if role == "Murderer" then 
                     hl.FillColor = Theme.MurderColor -- ROSSO
                 elseif role == "Sheriff" then 
@@ -262,7 +291,7 @@ RunService.RenderStepped:Connect(function()
             end
         end
     else
-        -- Rimuovi l'ESP se disattivato
+        -- Disattiva l'ESP se l'utente spegne il toggle
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
                 local hl = p.Character:FindFirstChild("XenoESP")
@@ -274,6 +303,7 @@ end)
 
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
+-- Dragging System
 local dragging, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = MainFrame.Position end
@@ -286,4 +316,4 @@ UIS.InputChanged:Connect(function(input)
 end)
 UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
-print("Negro di Fiducia Hub - Combat Edition Loaded!")
+print("Negro di Fiducia Hub - Combat Edition Loaded & Fixed!")
