@@ -1,6 +1,6 @@
 -- [[ NEGRO DI FIDUCIA HUB - COMBAT EDITION ]] --
 -- Optimized for: Xeno Executor | Low-End PC
--- Features: Role-Based ESP, Insta-Kill Sheriff, Advanced Murderer Aura
+-- Features: Role-Based ESP (Red/Blue/White), Insta-Kill Sheriff, Advanced Murderer Aura
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -28,8 +28,9 @@ local Theme = {
     Text = Color3.fromRGB(255, 255, 255),
     Button = Color3.fromRGB(30, 30, 40),
     Close = Color3.fromRGB(255, 40, 40),
-    MurderColor = Color3.fromRGB(255, 0, 0),
-    SheriffColor = Color3.fromRGB(0, 170, 255)
+    MurderColor = Color3.fromRGB(255, 0, 0),    -- ROSSO
+    SheriffColor = Color3.fromRGB(0, 170, 255), -- BLU
+    InnocentColor = Color3.fromRGB(255, 255, 255) -- BIANCO
 }
 
 -- // GUI SETUP
@@ -134,7 +135,6 @@ local function CreateSlider(text, min, max, default, parent, callback)
     slider.Position = UDim2.new(0, 0, 0.7, 0)
     slider.BackgroundColor3 = Theme.Accent; slider.Text = ""; slider.Parent = frame
 
-    -- Simple click-to-increase for low-end PC (avoids laggy dragging)
     slider.MouseButton1Click:Connect(function()
         local newVal = default + 5
         if newVal > max then newVal = min end
@@ -169,10 +169,10 @@ end
 CreateToggle("Fly", false, MainTab, function(v) Settings.FlyEnabled = v end)
 CreateToggle("Speed Boost", false, MainTab, function(v) Settings.WalkSpeed = v and 60 or 16 end)
 
--- [ VISUALS ] (Sceriffo Blu / Murder Rosso)
+-- [ VISUALS ] (Murder Rosso / Sceriffo Blu / Innocenti Bianchi)
 CreateToggle("Role ESP", false, VisualTab, function(v) Settings.EspEnabled = v end)
 
--- [ COMBAT ] - Divisione Sceriffo e Murderer
+-- [ COMBAT ]
 local SheriffLabel = Instance.new("TextLabel", CombatTab)
 SheriffLabel.Text = "--- SHERIFF SECTION ---"; SheriffLabel.Size = UDim2.new(1,0,0,20); SheriffLabel.TextColor3 = Theme.SheriffColor; SheriffLabel.BackgroundTransparency = 1
 
@@ -187,7 +187,6 @@ CreateSlider("Aura Range", 10, 100, 20, CombatTab, function(v) Settings.AuraRang
 
 -- // LOGIC ENGINE
 
--- Raycast check for visibility (Muri)
 local function IsVisible(target)
     local origin = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new()
     local targetPos = target.Character and target.Character:FindFirstChild("HumanoidRootPart") and target.Character.HumanoidRootPart.Position or Vector3.new()
@@ -199,7 +198,6 @@ local function IsVisible(target)
     return result == nil or result.Instance:IsDescendantOf(target.Character)
 end
 
--- Sheriff Insta-Kill Logic (Mouse Click)
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 and Settings.SheriffInstaKill then
@@ -207,7 +205,6 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         if mouseTarget and mouseTarget.Parent:FindFirstChild("Humanoid") then
             local targetPlayer = Players:GetPlayerFromCharacter(mouseTarget.Parent)
             if targetPlayer and targetPlayer:GetAttribute("Role") == "Murderer" and IsVisible(targetPlayer) then
-                -- Remote fire logic for gun kill
                 for _, v in pairs(RepStorage:GetDescendants()) do
                     if v:IsA("RemoteEvent") and v.Name:lower():find("shoot") then v:FireServer(targetPlayer) end
                 end
@@ -221,7 +218,6 @@ RunService.Heartbeat:Connect(function()
         LocalPlayer.Character.Humanoid.WalkSpeed = Settings.WalkSpeed
     end
 
-    -- Murderer Advanced Aura Logic
     if Settings.KillAura or Settings.KnifeThrowAura then
         local char = LocalPlayer.Character
         if char and (char:FindFirstChild("Knife") or LocalPlayer:GetAttribute("Role") == "Murderer") then
@@ -229,11 +225,11 @@ RunService.Heartbeat:Connect(function()
                 if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                     local dist = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
                     if dist <= Settings.AuraRange and IsVisible(p) then
-                        if Settings.KillAura then -- Melee Kill
+                        if Settings.KillAura then 
                             for _, v in pairs(RepStorage:GetDescendants()) do
                                 if v:IsA("RemoteEvent") and v.Name:lower():find("attack") then v:FireServer(p) end
                             end
-                        elseif Settings.KnifeThrowAura then -- Auto Throw
+                        elseif Settings.KnifeThrowAura then 
                             for _, v in pairs(RepStorage:GetDescendants()) do
                                 if v:IsA("RemoteEvent") and v.Name:lower():find("throw") then v:FireServer(p) end
                             end
@@ -245,21 +241,37 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- ESP ROLE COLORS logic (Fixed here)
 RunService.RenderStepped:Connect(function()
     if Settings.EspEnabled then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
                 local hl = p.Character:FindFirstChild("XenoESP") or Instance.new("Highlight", p.Character)
                 hl.Name = "XenoESP"
-                -- Colore basato sul ruolo
-                if p:GetAttribute("Role") == "Murderer" then hl.FillColor = Theme.MurderColor else hl.FillColor = Theme.SheriffColor end
+                hl.Enabled = true
+                
+                local role = p:GetAttribute("Role")
+                if role == "Murderer" then 
+                    hl.FillColor = Theme.MurderColor -- ROSSO
+                elseif role == "Sheriff" then 
+                    hl.FillColor = Theme.SheriffColor -- BLU
+                else 
+                    hl.FillColor = Theme.InnocentColor -- BIANCO (Innocenti)
+                end
                 hl.OutlineColor = Color3.new(1,1,1)
+            end
+        end
+    else
+        -- Rimuovi l'ESP se disattivato
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local hl = p.Character:FindFirstChild("XenoESP")
+                if hl then hl.Enabled = false end
             end
         end
     end
 end)
 
--- Close & Drag logic (Standard)
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
 local dragging, dragStart, startPos
