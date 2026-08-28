@@ -1,94 +1,46 @@
--- [[ NEGRO DI FIDUCIA HUB - COMBAT EDITION ]] --
--- Fixed ESP: Dynamic Role Detection (Inventory Scan)
--- Optimized for: Xeno Executor
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local RepStorage = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-
--- // SETTINGS
-local Settings = {
-    EspEnabled = false,
-    KillAura = false,
-    AuraRange = 20,
-    KnifeThrowAura = false,
-    SheriffInstaKill = false,
-    WalkSpeed = 16,
-    JumpPower = 50
-}
-
--- // THEME
-local Theme = {
-    Main = Color3.fromRGB(10, 10, 15),
-    Side = Color3.fromRGB(20, 20, 25),
-    Accent = Color3.fromRGB(0, 170, 255),
-    Text = Color3.fromRGB(255, 255, 255),
-    Button = Color3.fromRGB(30, 30, 40),
-    Close = Color3.fromRGB(255, 40, 40),
-    MurderColor = Color3.fromRGB(255, 0, 0),    -- ROSSO
-    SheriffColor = Color3.fromRGB(0, 170, 255), -- BLU
-    InnocentColor = Color3.fromRGB(255, 255, 255) -- BIANCO
-}
-
--- // GUI SETUP (Mantengo la tua struttura originale)
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local SideBar = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local ContentFrame = Instance.new("Frame")
-local TabContainer = Instance.new("Frame")
-local CloseBtn = Instance.new("TextButton")
-local DragonImg = Instance.new("ImageLabel")
-
-pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
-if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+```lua
+-- // GUI SETUP (MIGLIORATA)
 ScreenGui.Name = "NegroFiducia_Combat"
+ScreenGui.ResetOnSpawn = false
 
-MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Theme.Main
-MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -190)
 MainFrame.Size = UDim2.new(0, 550, 0, 380)
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Thickness = 2; MainStroke.Color = Theme.Accent
+MainFrame.ClipsDescendants = true
 
-SideBar.Parent = MainFrame
 SideBar.BackgroundColor3 = Theme.Side
 SideBar.Size = UDim2.new(0, 140, 1, 0)
-Instance.new("UICorner", SideBar).CornerRadius = UDim.new(0, 12)
 
-DragonImg.Parent = SideBar
-DragonImg.BackgroundTransparency = 1
-DragonImg.Position = UDim2.new(0.1, 0, 0.05, 0)
-DragonImg.Size = UDim2.new(0.8, 0, 0, 60)
 DragonImg.Image = "rbxassetid://14532935813"
+DragonImg.Position = UDim2.new(0.5, 0, 0.05, 0)
+DragonImg.Size = UDim2.new(0.8, 0, 0, 60)
+DragonImg.BackgroundTransparency = 1
 
-Title.Parent = SideBar
 Title.Text = "NEGRO DI\nFIDUCIA HUB"
 Title.TextColor3 = Theme.Accent
-Title.TextSize = 16; Title.Font = Enum.Font.GothamBold
-Title.Position = UDim2.new(0, 0, 0, 70); Title.Size = UDim2.new(1, 0, 0, 50)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.Position = UDim2.new(0, 0, 0, 70)
+Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundTransparency = 1
 
-CloseBtn.Parent = MainFrame
-CloseBtn.Text = "X"; CloseBtn.TextColor3 = Color3.new(1,1,1)
-CloseBtn.BackgroundColor3 = Theme.Close; CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 5); CloseBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.BackgroundColor3 = Theme.Close
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextScaled = true
 
-ContentFrame.Parent = MainFrame
 ContentFrame.Position = UDim2.new(0, 150, 0, 15)
 ContentFrame.Size = UDim2.new(1, -160, 1, -30)
 ContentFrame.BackgroundTransparency = 1
+ContentFrame.ClipsDescendants = true
 
-TabContainer.Parent = ContentFrame
 TabContainer.Size = UDim2.new(1, 0, 1, 0)
 TabContainer.BackgroundTransparency = 1
 
--- // UI HELPERS
+-- // UI HELPERS (MIGLIORATI)
 local function CreateSection(name)
     local section = Instance.new("ScrollingFrame")
     section.Name = name
@@ -96,6 +48,7 @@ local function CreateSection(name)
     section.BackgroundTransparency = 1
     section.CanvasSize = UDim2.new(0, 0, 2, 0)
     section.ScrollBarThickness = 2
+    section.ScrollBarInset = Enum.ScrollBarInset.ScrollBar
     section.Visible = false
     section.Parent = TabContainer
     Instance.new("UIListLayout", section).Padding = UDim.new(0, 8)
@@ -108,7 +61,11 @@ local function CreateToggle(text, default, parent, callback)
     btn.Size = UDim2.new(1, -10, 0, 35)
     btn.BackgroundColor3 = state and Theme.Accent or Theme.Button
     btn.Text = text .. " : " .. (state and "ON" or "OFF")
-    btn.TextColor3 = Theme.Text; btn.Font = Enum.Font.GothamMedium; btn.TextSize = 13; btn.Parent = parent
+    btn.TextColor3 = Theme.Text
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.Parent = parent
+    btn.TextScaled = true
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     btn.MouseButton1Click:Connect(function()
         state = not state
@@ -128,19 +85,60 @@ local function CreateSlider(text, min, max, default, parent, callback)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text .. ": " .. default
     lbl.Size = UDim2.new(1, 0, 0, 20)
-    lbl.TextColor3 = Theme.Text; lbl.BackgroundTransparency = 1; lbl.Parent = frame
+    lbl.TextColor3 = Theme.Text
+    lbl.BackgroundTransparency = 1
+    lbl.Parent = frame
 
-    local slider = Instance.new("TextButton")
-    slider.Size = UDim2.new(0, 0, 0, 10)
-    slider.Position = UDim2.new(0, 0, 0.7, 0)
-    slider.BackgroundColor3 = Theme.Accent; slider.Text = ""; slider.Parent = frame
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(1, -20, 0, 10)
+    slider.Position = UDim2.new(0, 10, 0, 25)
+    slider.BackgroundColor3 = Theme.Accent
+    slider.Parent = frame
+    Instance.new("UICorner", slider).CornerRadius = UDim.new(0, 5)
 
-    slider.MouseButton1Click:Connect(function()
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 10, 1, 0)
+    sliderBtn.Position = UDim2.new(0, 0, 0, 0)
+    sliderBtn.BackgroundColor3 = Theme.Accent
+    sliderBtn.Text = ""
+    sliderBtn.Parent = slider
+    Instance.new("UICorner", sliderBtn).CornerRadius = UDim.new(0, 5)
+
+    sliderBtn.MouseButton1Click:Connect(function()
         local newVal = default + 5
         if newVal > max then newVal = min end
         default = newVal
         lbl.Text = text .. ": " .. default
+        slider.Size = UDim2.new((default - min) / (max - min), -20, 0, 10)
         callback(default)
+    end)
+    sliderBtn.MouseButton1Down:Connect(function()
+        local drag = true
+        local startPos = sliderBtn.Position
+        local startX = UIS:GetMouseLocation().X
+        UIS.InputChanged:Connect(function(input)
+            if drag and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local deltaX = input.Position.X - startX
+                local newX = startPos.X.Scale + (deltaX / slider.Parent.Size.X.Scale)
+                newX = math.clamp(newX, 0, 1)
+                sliderBtn.Position = UDim2.new(newX, 0, 0, 0)
+                local newVal = min + (newX * (max - min))
+                default = math.round(newVal)
+                lbl.Text = text .. ": " .. default
+                callback(default)
+            end
+        end)
+        UIS.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                drag = false
+            end
+        end)
+    end)
+    sliderBtn.MouseEnter:Connect(function()
+        sliderBtn.Size = UDim2.new(0, 10, 1, 0)
+    end)
+    sliderBtn.MouseLeave:Connect(function()
+        sliderBtn.Size = UDim2.new(0, 10, 1, 0)
     end)
 end
 
@@ -148,14 +146,18 @@ end
 local MainTab = CreateSection("Main")
 local CombatTab = CreateSection("Combat")
 local VisualTab = CreateSection("Visuals")
-
 MainTab.Visible = true
 
 local tabs = {{"Main", MainTab}, {"Combat", CombatTab}, {"Visuals", VisualTab}}
 for i, tabData in ipairs(tabs) do
     local tBtn = Instance.new("TextButton")
-    tBtn.Size = UDim2.new(0, 120, 0, 35); tBtn.Position = UDim2.new(0, 10, 0, 130 + (i*40))
-    tBtn.BackgroundColor3 = Theme.Button; tBtn.Text = tabData[1]; tBtn.TextColor3 = Theme.Text; tBtn.Parent = SideBar
+    tBtn.Size = UDim2.new(0, 120, 0, 35)
+    tBtn.Position = UDim2.new(0, 10, 0, 130 + (i-1)*40)
+    tBtn.BackgroundColor3 = Theme.Button
+    tBtn.Text = tabData[1]
+    tBtn.TextColor3 = Theme.Text
+    tBtn.Parent = SideBar
+    tBtn.TextScaled = true
     Instance.new("UICorner", tBtn).CornerRadius = UDim.new(0, 6)
     tBtn.MouseButton1Click:Connect(function()
         for _, v in pairs(TabContainer:GetChildren()) do v.Visible = false end
@@ -169,36 +171,37 @@ CreateToggle("Speed Boost", false, MainTab, function(v) Settings.WalkSpeed = v a
 CreateToggle("Role ESP", false, VisualTab, function(v) Settings.EspEnabled = v end)
 
 local SheriffLabel = Instance.new("TextLabel", CombatTab)
-SheriffLabel.Text = "--- SHERIFF SECTION ---"; SheriffLabel.Size = UDim2.new(1,0,0,20); SheriffLabel.TextColor3 = Theme.SheriffColor; SheriffLabel.BackgroundTransparency = 1
+SheriffLabel.Text = "--- SHERIFF SECTION ---"
+SheriffLabel.Size = UDim2.new(1, 0, 0, 20)
+SheriffLabel.TextColor3 = Theme.SheriffColor
+SheriffLabel.BackgroundTransparency = 1
+SheriffLabel.TextScaled = true
 
 CreateToggle("Insta-Kill Murderer (Click)", false, CombatTab, function(v) Settings.SheriffInstaKill = v end)
 
 local MurderLabel = Instance.new("TextLabel", CombatTab)
-MurderLabel.Text = "--- MURDERER SECTION ---"; MurderLabel.Size = UDim2.new(1,0,0,20); MurderLabel.TextColor3 = Theme.MurderColor; MurderLabel.BackgroundTransparency = 1; MurderLabel.Position = UDim2.new(0,0,0,50)
+MurderLabel.Text = "--- MURDERER SECTION ---"
+MurderLabel.Size = UDim2.new(1, 0, 0, 20)
+MurderLabel.TextColor3 = Theme.MurderColor
+MurderLabel.BackgroundTransparency = 1
+MurderLabel.Position = UDim2.new(0, 0, 0, 50)
+MurderLabel.TextScaled = true
 
 CreateToggle("Kill Aura", false, CombatTab, function(v) Settings.KillAura = v end)
 CreateToggle("Knife Throw Aura (Auto)", false, CombatTab, function(v) Settings.KnifeThrowAura = v end)
 CreateSlider("Aura Range", 10, 100, 20, CombatTab, function(v) Settings.AuraRange = v end)
 
--- // LOGIC ENGINE (SISTEMA DI RILEVAMENTO RUOLI AVANZATO)
-
--- Funzione per determinare il ruolo basandosi sull'inventario fisico e attributi
+-- // LOGIC ENGINE
 local function GetPlayerRole(player)
     if not player or not player.Character then return "Innocent" end
-    
-    -- Metodo 1: Controllo Attributi (Se presenti)
     local roleAttr = player:GetAttribute("Role")
     if roleAttr then return roleAttr end
-
-    -- Metodo 2: Scansione Personaggio (Cerca l'arma fisica)
     for _, item in pairs(player.Character:GetChildren()) do
         if item:IsA("Tool") then
             if item.Name:lower():find("knife") then return "Murderer" end
             if item.Name:lower():find("gun") or item.Name:lower():find("revolver") then return "Sheriff" end
         end
     end
-
-    -- Metodo 3: Controllo Backpack (Se l'arma è equipaggiata ma non ancora nel char)
     local bp = player:FindFirstChild("Backpack")
     if bp then
         for _, item in pairs(bp:GetChildren()) do
@@ -208,7 +211,6 @@ local function GetPlayerRole(player)
             end
         end
     end
-
     return "Innocent"
 end
 
@@ -266,19 +268,15 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- // ESP ROLE COLORS (RISSCRITTO COMPLETAMENTE PER FUNZIONARE)
 RunService.RenderStepped:Connect(function()
     if Settings.EspEnabled then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
-                -- Crea o recupera l'Highlight
                 local hl = p.Character:FindFirstChild("XenoESP") or Instance.new("Highlight", p.Character)
                 hl.Name = "XenoESP"
                 hl.Enabled = true
                 hl.FillTransparency = 0.4
                 hl.OutlineTransparency = 0
-
-                -- Rileva il ruolo dinamicamente ogni frame
                 local role = GetPlayerRole(p)
                 if role == "Murderer" then 
                     hl.FillColor = Theme.MurderColor -- ROSSO
@@ -287,11 +285,10 @@ RunService.RenderStepped:Connect(function()
                 else 
                     hl.FillColor = Theme.InnocentColor -- BIANCO (Innocenti)
                 end
-                hl.OutlineColor = Color3.new(1,1,1)
+                hl.OutlineColor = Color3.new(1, 1, 1)
             end
         end
     else
-        -- Disattiva l'ESP se l'utente spegne il toggle
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
                 local hl = p.Character:FindFirstChild("XenoESP")
@@ -301,12 +298,20 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    -- Salva lo stato attuale per riaprirlo
+    Settings.Save = Settings
+end)
 
 -- Dragging System
 local dragging, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = MainFrame.Position end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
 end)
 UIS.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
@@ -314,6 +319,34 @@ UIS.InputChanged:Connect(function(input)
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
 
-print("Negro di Fiducia Hub - Combat Edition Loaded & Fixed!")
+-- Funzione per riaprire la GUI
+local function ReopenGUI()
+    local newScreenGui = Instance.new("ScreenGui")
+    newScreenGui.Name = "NegroFiducia_Combat"
+    newScreenGui.ResetOnSpawn = false
+    newScreenGui.Parent = game:GetService("CoreGui")
+
+    local newMainFrame = Instance.new("Frame")
+    newMainFrame.Parent = newScreenGui
+    newMainFrame.BackgroundColor3 = Theme.Main
+    newMainFrame.Position = Settings.Save.Position or UDim2.new(0.5, -275, 0.5, -190)
+    newMainFrame.Size = UDim2.new(0, 550, 0, 380)
+    newMainFrame.ClipsDescendants = true
+
+    -- Attiva le impostazioni salvate
+    for key, value in pairs(Settings.Save) do
+        Settings[key] = value
+    end
+
+    -- ... (Continua con il resto della configurazione della GUI)
+end
+
+-- Connetti la funzione di riapertura a un evento o pulsante
+-- Ad esempio, puoi aggiungere un pulsante nel menu principale del gioco per riaprire la GUI
+```
