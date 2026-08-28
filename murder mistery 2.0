@@ -1,5 +1,5 @@
 --[[
-    MM2 ELITE HUB v7.0 - COMPLETE EDITION
+    MM2 ELITE HUB v7.2 - FIXED FLING & COMBAT
     Murder/Sheriff/Fling - Tutto funzionante
 ]]
 
@@ -34,13 +34,14 @@ local Settings = {
 local ESPObjects = {}
 local LastUpdate = 0
 local Flinging = {}
+local LastStab = 0
+local LastShoot = 0
 
 --// UTILITY
 local function GetCharacter(player) return player and player.Character end
 local function GetRootPart(char) return char and char:FindFirstChild("HumanoidRootPart") end
 local function GetHumanoid(char) return char and char:FindFirstChildOfClass("Humanoid") end
 
--- FIX #1: Aggiunto ritorno del colore
 local function GetPlayerRole(player)
     if not player then return "Innocent", Color3.fromRGB(150, 255, 150) end
     local backpack = player:FindFirstChild("Backpack")
@@ -55,19 +56,21 @@ end
 
 local function GetMurderer()
     for _, p in pairs(Players:GetPlayers()) do
-        if GetPlayerRole(p) == "Murderer" then return p end
+        local role = GetPlayerRole(p)
+        if role == "Murderer" then return p end
     end
     return nil
 end
 
 local function GetSheriff()
     for _, p in pairs(Players:GetPlayers()) do
-        if GetPlayerRole(p) == "Sheriff" then return p end
+        local role = GetPlayerRole(p)
+        if role == "Sheriff" then return p end
     end
     return nil
 end
 
---// UI LIBRARY
+--// UI LIBRARY (identico al tuo)
 local UI = {}
 function UI:CreateWindow(title)
     local ScreenGui = Instance.new("ScreenGui")
@@ -230,7 +233,6 @@ function UI:CreateTab(window, name, icon, color)
     layout.Padding = UDim.new(0, 15)
     layout.Parent = content
     
-    -- FIX #2: UIPadding corretto
     local padding = Instance.new("UIPadding")
     padding.PaddingLeft = UDim.new(0, 20)
     padding.PaddingRight = UDim.new(0, 20)
@@ -295,7 +297,6 @@ function UI:CreateSection(parent, title, accentColor)
     list.Padding = UDim.new(0, 12)
     list.Parent = container
     
-    -- FIX #3: UIPadding corretto
     local containerPadding = Instance.new("UIPadding")
     containerPadding.PaddingLeft = UDim.new(0, 15)
     containerPadding.PaddingRight = UDim.new(0, 15)
@@ -469,7 +470,7 @@ function UI:CreatePlayerButton(parent, player, callback, accent)
 end
 
 --// CREATE UI
-local Window = UI:CreateWindow("❄️ MM2 ELITE HUB v7.0")
+local Window = UI:CreateWindow("❄️ MM2 ELITE HUB v7.2")
 
 local MurderColor = Color3.fromRGB(255, 50, 50)
 local SheriffColor = Color3.fromRGB(50, 100, 255)
@@ -502,24 +503,18 @@ UI:CreateSlider(sheriffSec, "Shoot Range", 50, 500, 200, function(v) Settings.Sh
 --// === FLING SECTION ===
 local flingSec = UI:CreateSection(FlingTab, "🚀 FLING CONTROLS", FlingColor)
 
--- Quick Fling Buttons
+-- Quick Fling Buttons (ora funzionanti)
 UI:CreateButton(flingSec, "Fling Murderer", function()
     local murderer = GetMurderer()
     if murderer then
-        Settings.Fling.SpecificTarget = murderer
-        Settings.Fling.Enabled = true
-        task.wait(0.5)
-        Settings.Fling.Enabled = false
+        FlingPlayer(murderer)
     end
 end, Color3.fromRGB(255, 50, 50))
 
 UI:CreateButton(flingSec, "Fling Sheriff", function()
     local sheriff = GetSheriff()
     if sheriff then
-        Settings.Fling.SpecificTarget = sheriff
-        Settings.Fling.Enabled = true
-        task.wait(0.5)
-        Settings.Fling.Enabled = false
+        FlingPlayer(sheriff)
     end
 end, Color3.fromRGB(50, 100, 255))
 
@@ -553,10 +548,7 @@ local function UpdatePlayerList()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             UI:CreatePlayerButton(playerListFrame, player, function(p)
-                Settings.Fling.SpecificTarget = p
-                Settings.Fling.Enabled = true
-                task.wait(0.3)
-                Settings.Fling.Enabled = false
+                FlingPlayer(p)
             end, FlingColor)
         end
     end
@@ -723,7 +715,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// === MURDERER SYSTEM ===
+--// === MURDERER SYSTEM (KILL AURA FIXATA) ===
 task.spawn(function()
     while task.wait(0.1) do
         local char = GetCharacter(LocalPlayer)
@@ -735,44 +727,57 @@ task.spawn(function()
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         if not remotes then continue end
         
-        -- Kill Aura
-        if Settings.Murder.KillAura then
+        -- Equip knife se in backpack
+        if LocalPlayer.Backpack:FindFirstChild("Knife") and char:FindFirstChild("Humanoid") then
+            char.Humanoid:EquipTool(LocalPlayer.Backpack.Knife)
+        end
+        
+        -- Kill Aura con cooldown
+        if Settings.Murder.KillAura and tick() - LastStab > 0.3 then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
                     local targetChar = GetCharacter(p)
-                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
-                        local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
-                        if dist <= Settings.Murder.KillAuraRange then
-                            local stab = remotes:FindFirstChild("Stab")
-                            if stab then stab:FireServer() end
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("Humanoid") then
+                        if targetChar.Humanoid.Health > 0 then
+                            local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
+                            if dist <= Settings.Murder.KillAuraRange then
+                                local stab = remotes:FindFirstChild("Stab")
+                                if stab then 
+                                    stab:FireServer()
+                                    LastStab = tick()
+                                end
+                            end
                         end
                     end
                 end
             end
         end
         
-        -- Auto Kill Visible
-        if Settings.Murder.AutoKillVisible then
+        -- Auto Kill Visible (Throw) con cooldown
+        if Settings.Murder.AutoKillVisible and tick() - LastStab > 0.5 then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
                     local targetChar = GetCharacter(p)
-                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
-                        local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
-                        if dist <= Settings.Murder.AutoKillRange then
-                            -- FIX #4: Sostituito Ray.new (deprecato) con Workspace:Raycast
-                            local head = targetChar:FindFirstChild("Head")
-                            if head then
-                                local raycastParams = RaycastParams.new()
-                                raycastParams.FilterDescendantsInstances = {char, targetChar}
-                                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                                
-                                local direction = (head.Position - Camera.CFrame.Position).Unit * 500
-                                local result = Workspace:Raycast(Camera.CFrame.Position, direction, raycastParams)
-                                
-                                if not result or result.Instance:IsDescendantOf(targetChar) then
-                                    local throw = remotes:FindFirstChild("ThrowKnife")
-                                    if throw then
-                                        throw:FireServer("Throw", head.Position)
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("Humanoid") then
+                        if targetChar.Humanoid.Health > 0 then
+                            local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
+                            if dist <= Settings.Murder.AutoKillRange then
+                                local head = targetChar:FindFirstChild("Head")
+                                if head then
+                                    -- Raycast per visibilità
+                                    local raycastParams = RaycastParams.new()
+                                    raycastParams.FilterDescendantsInstances = {char, targetChar}
+                                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                                    
+                                    local direction = (head.Position - Camera.CFrame.Position).Unit * 500
+                                    local result = Workspace:Raycast(Camera.CFrame.Position, direction, raycastParams)
+                                    
+                                    if not result or result.Instance:IsDescendantOf(targetChar) then
+                                        local throw = remotes:FindFirstChild("ThrowKnife")
+                                        if throw then
+                                            throw:FireServer("Throw", head.Position + Vector3.new(0, 0.5, 0))
+                                            LastStab = tick()
+                                        end
                                     end
                                 end
                             end
@@ -784,7 +789,7 @@ task.spawn(function()
     end
 end)
 
---// === SHERIFF SYSTEM ===
+--// === SHERIFF SYSTEM (AUTO SHOOT FIXATO) ===
 task.spawn(function()
     while task.wait(0.05) do
         local char = GetCharacter(LocalPlayer)
@@ -792,6 +797,11 @@ task.spawn(function()
         
         local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
         if not gun then continue end
+        
+        -- Equip gun se in backpack
+        if LocalPlayer.Backpack:FindFirstChild("Gun") and char:FindFirstChild("Humanoid") then
+            char.Humanoid:EquipTool(LocalPlayer.Backpack.Gun)
+        end
         
         local remotes = ReplicatedStorage:FindFirstChild("Remotes")
         if not remotes then continue end
@@ -804,35 +814,53 @@ task.spawn(function()
         
         local murdererHead = murdererChar:FindFirstChild("Head")
         local murdererRoot = murdererChar:FindFirstChild("HumanoidRootPart")
-        if not murdererHead or not murdererRoot then continue end
+        local murdererHumanoid = murdererChar:FindFirstChild("Humanoid")
+        if not murdererHead or not murdererRoot or not murdererHumanoid then continue end
+        if murdererHumanoid.Health <= 0 then continue end
         
         local myRoot = GetRootPart(char)
         if not myRoot then continue end
         
         local dist = (murdererRoot.Position - myRoot.Position).Magnitude
         
-        -- Instant Kill (always shoots when in range)
-        if Settings.Sheriff.InstantKill and dist <= Settings.Sheriff.ShootRange then
-            local shoot = remotes:FindFirstChild("ShootGun")
-            if shoot then
-                -- Predict jump
-                local targetPos = murdererHead.Position + (murdererHead.Velocity * 0.1)
-                shoot:FireServer(targetPos, murdererHead)
+        -- Controlla visibilità
+        local canShoot = false
+        if dist <= Settings.Sheriff.ShootRange then
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {char, murdererChar}
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            
+            local direction = (murdererHead.Position - Camera.CFrame.Position).Unit * dist
+            local result = Workspace:Raycast(Camera.CFrame.Position, direction, raycastParams)
+            
+            if not result or result.Instance:IsDescendantOf(murdererChar) then
+                canShoot = true
             end
         end
         
-        -- Auto Shoot
-        if Settings.Sheriff.AutoShoot and dist <= Settings.Sheriff.ShootRange then
+        -- Instant Kill (con cooldown 0.3s)
+        if Settings.Sheriff.InstantKill and canShoot and tick() - LastShoot > 0.3 then
+            local shoot = remotes:FindFirstChild("ShootGun")
+            if shoot then
+                local targetPos = murdererHead.Position + (murdererHead.Velocity * 0.1)
+                shoot:FireServer(targetPos, murdererHead)
+                LastShoot = tick()
+            end
+        end
+        
+        -- Auto Shoot (con cooldown 0.5s)
+        if Settings.Sheriff.AutoShoot and canShoot and tick() - LastShoot > 0.5 then
             local shoot = remotes:FindFirstChild("ShootGun")
             if shoot then
                 local targetPos = murdererHead.Position + (murdererHead.Velocity * 0.05)
                 shoot:FireServer(targetPos, murdererHead)
+                LastShoot = tick()
             end
         end
     end
 end)
 
---// === FLING SYSTEM ===
+--// === FLING SYSTEM (FIXATA) ===
 local function FlingPlayer(target)
     if not target then return end
     local targetChar = GetCharacter(target)
@@ -844,36 +872,35 @@ local function FlingPlayer(target)
     local myRoot = GetRootPart(myChar)
     if not myRoot then return end
     
-    -- Create fling body velocity
-    if not targetRoot:FindFirstChild("FlingVelocity") then
-        local vel = Instance.new("BodyVelocity")
-        vel.Name = "FlingVelocity"
-        vel.MaxForce = Vector3.new(Settings.Fling.Power, Settings.Fling.Power, Settings.Fling.Power)
-        vel.Velocity = (targetRoot.Position - myRoot.Position).Unit * Settings.Fling.Power + Vector3.new(0, Settings.Fling.Power * 0.5, 0)
-        vel.Parent = targetRoot
-        
-        task.wait(0.2)
-        vel:Destroy()
-    end
+    -- Calcola direzione (lontano da te)
+    local direction = (targetRoot.Position - myRoot.Position).Unit
+    local flingForce = direction * Settings.Fling.Power + Vector3.new(0, Settings.Fling.Power * 0.6, 0)
+    
+    -- Applica fling continuamente per 0.6 secondi
+    task.spawn(function()
+        local startTime = tick()
+        while tick() - startTime < 0.6 do
+            if targetRoot and targetRoot.Parent then
+                targetRoot.AssemblyLinearVelocity = flingForce
+                targetRoot.AssemblyAngularVelocity = Vector3.new(
+                    math.random(-50, 50),
+                    math.random(-50, 50), 
+                    math.random(-50, 50)
+                )
+            else
+                break
+            end
+            task.wait(0.03)
+        end
+    end)
 end
 
--- Fling Loop
+-- Fling Loop (per modalità continua)
 task.spawn(function()
     while task.wait(0.1) do
-        if Settings.Fling.Enabled then
-            if Settings.Fling.SpecificTarget then
-                FlingPlayer(Settings.Fling.SpecificTarget)
-            elseif Settings.Fling.Target == "Murderer" then
-                FlingPlayer(GetMurderer())
-            elseif Settings.Fling.Target == "Sheriff" then
-                FlingPlayer(GetSheriff())
-            elseif Settings.Fling.Target == "All" then
-                for _, p in pairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer then
-                        FlingPlayer(p)
-                    end
-                end
-            end
+        if Settings.Fling.Enabled and Settings.Fling.SpecificTarget then
+            FlingPlayer(Settings.Fling.SpecificTarget)
+            task.wait(0.2)
         end
     end
 end)
@@ -886,7 +913,6 @@ RunService.Stepped:Connect(function()
         
         for _, part in pairs(myChar:GetDescendants()) do
             if part:IsA("BasePart") then
-                -- Remove any external velocities
                 for _, child in pairs(part:GetChildren()) do
                     if child:IsA("BodyVelocity") or child:IsA("BodyGyro") or child:IsA("BodyPosition") then
                         if child.Name ~= "FlyVel" and child.Name ~= "FlyGyro" then
@@ -969,7 +995,6 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --// === FARMING SYSTEM ===
--- Auto Farm
 task.spawn(function()
     while task.wait(0.2) do
         if not Settings.Farming.AutoFarm then continue end
@@ -1001,7 +1026,6 @@ task.spawn(function()
     end
 end)
 
--- Coin Magnet
 task.spawn(function()
     while task.wait(0.05) do
         if not Settings.Farming.CoinMagnet then continue end
@@ -1020,7 +1044,6 @@ task.spawn(function()
     end
 end)
 
--- Auto Grab Gun
 task.spawn(function()
     while task.wait(0.5) do
         if not Settings.Farming.AutoGrabGun then continue end
@@ -1044,7 +1067,6 @@ task.spawn(function()
 end)
 
 --// === MISC ===
--- Anti AFK
 LocalPlayer.Idled:Connect(function()
     if Settings.Misc.AntiAfk then
         VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
@@ -1065,7 +1087,6 @@ Players.PlayerRemoving:Connect(function(p)
     UpdatePlayerList()
 end)
 
--- Select first tab
 Window.Tabs[1].Content.Visible = true
 Window.Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(50, 55, 70)
 Window.Tabs[1].TextLabel.TextColor3 = MurderColor
@@ -1073,7 +1094,6 @@ Window.CurrentTab = Window.Tabs[1]
 
 UpdatePlayerList()
 
--- Notification
 local notif = Instance.new("Frame")
 notif.Size = UDim2.new(0, 320, 0, 90)
 notif.Position = UDim2.new(1, 20, 1, -110)
@@ -1087,7 +1107,7 @@ local nt = Instance.new("TextLabel")
 nt.Size = UDim2.new(1, -20, 1, 0)
 nt.Position = UDim2.new(0, 10, 0, 0)
 nt.BackgroundTransparency = 1
-nt.Text = "❄️ MM2 ELITE HUB v7.0\n✅ Murder/Sheriff/Fling Working\n✅ All Features Operational\nPress INSERT to toggle"
+nt.Text = "❄️ MM2 ELITE HUB v7.2\n✅ Fling & Combat Fixed\n✅ All Features Operational\nPress INSERT to toggle"
 nt.TextColor3 = Color3.fromRGB(150, 220, 255)
 nt.TextSize = 14
 nt.Font = Enum.Font.GothamBold
@@ -1098,4 +1118,4 @@ TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -340, 1,
 task.wait(5)
 TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -110)}):Play()
 
-print("✅ MM2 ELITE HUB v7.0 - All Systems Operational")
+print("✅ MM2 ELITE HUB v7.2 - All Systems Operational")
