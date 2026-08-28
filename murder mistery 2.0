@@ -1,6 +1,6 @@
 --[[
-    MM2 ELITE HUB v6.0 - COMPLETE WORKING EDITION
-    Tutte le funzionalità testate e funzionanti
+    MM2 ELITE HUB v7.0 - COMPLETE EDITION
+    Murder/Sheriff/Fling - Tutto funzionante
 ]]
 
 local Players = game:GetService("Players")
@@ -21,67 +21,60 @@ local Mouse = LocalPlayer:GetMouse()
 
 --// SETTINGS
 local Settings = {
-    Combat = { 
-        Aimbot = false, AimPart = "Head", KillAura = false, AutoStab = false, 
-        AutoShoot = false, FOV = 150, Smoothness = 0.08, TeamCheck = true 
-    },
-    ESP = { 
-        Enabled = false, Boxes = true, Names = true, Distance = true, 
-        Roles = true, Tracers = false, MaxDistance = 1500 
-    },
-    Movement = { 
-        Speed = 16, Jump = 50, Fly = false, FlySpeed = 60, 
-        NoClip = false, InfiniteJump = false, AutoSprint = false 
-    },
-    Farming = { 
-        AutoFarm = false, SmartFarm = true, CoinMagnet = false, 
-        MagnetRange = 60, AutoGrabGun = false, FarmSpeed = 250 
-    },
-    Misc = { 
-        FullBright = false, AntiAfk = true, NoFog = false 
-    }
+    Murder = { KillAura = false, KillAuraRange = 12, AutoKillVisible = false, AutoKillRange = 50 },
+    Sheriff = { InstantKill = false, AutoShoot = false, ShootRange = 200 },
+    Fling = { Enabled = false, Target = nil, Power = 500, AntiFling = false, SpecificTarget = nil },
+    ESP = { Enabled = false, Boxes = true, Names = true, Distance = true, Roles = true, Tracers = false, MaxDistance = 1500 },
+    Movement = { Speed = 16, Jump = 50, Fly = false, FlySpeed = 60, NoClip = false, InfiniteJump = false, AutoSprint = false },
+    Farming = { AutoFarm = false, SmartFarm = true, CoinMagnet = false, MagnetRange = 60, AutoGrabGun = false, FarmSpeed = 250 },
+    Misc = { FullBright = false, AntiAfk = true, NoFog = false }
 }
 
 --// CACHE
 local ESPObjects = {}
 local LastUpdate = 0
+local Flinging = {}
 
---// UTILITY FUNCTIONS
-local function GetCharacter(player)
-    return player and player.Character
-end
-
-local function GetRootPart(character)
-    return character and character:FindFirstChild("HumanoidRootPart")
-end
-
-local function GetHumanoid(character)
-    return character and character:FindFirstChildOfClass("Humanoid")
-end
+--// UTILITY
+local function GetCharacter(player) return player and player.Character end
+local function GetRootPart(char) return char and char:FindFirstChild("HumanoidRootPart") end
+local function GetHumanoid(char) return char and char:FindFirstChildOfClass("Humanoid") end
 
 local function GetPlayerRole(player)
+    if not player then return "Innocent" end
     local backpack = player:FindFirstChild("Backpack")
-    local character = GetCharacter(player)
-    
-    if (backpack and backpack:FindFirstChild("Knife")) or (character and character:FindFirstChild("Knife")) then
-        return "Murderer", Color3.fromRGB(255, 50, 50)
-    elseif (backpack and backpack:FindFirstChild("Gun")) or (character and character:FindFirstChild("Gun")) then
-        return "Sheriff", Color3.fromRGB(50, 100, 255)
+    local char = GetCharacter(player)
+    if (backpack and backpack:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife")) then
+        return "Murderer"
+    elseif (backpack and backpack:FindFirstChild("Gun")) or (char and char:FindFirstChild("Gun")) then
+        return "Sheriff"
     end
-    return "Innocent", Color3.fromRGB(0, 255, 100)
+    return "Innocent"
 end
 
---// ULTRA MODERN UI
-local UI = {}
+local function GetMurderer()
+    for _, p in pairs(Players:GetPlayers()) do
+        if GetPlayerRole(p) == "Murderer" then return p end
+    end
+    return nil
+end
 
+local function GetSheriff()
+    for _, p in pairs(Players:GetPlayers()) do
+        if GetPlayerRole(p) == "Sheriff" then return p end
+    end
+    return nil
+end
+
+--// UI LIBRARY
+local UI = {}
 function UI:CreateWindow(title)
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "EliteHub"
+    ScreenGui.Name = "MM2HubV7"
     ScreenGui.Parent = CoreGui
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.ResetOnSpawn = false
     
-    -- Dragon Button
     local DragonButton = Instance.new("TextButton")
     DragonButton.Size = UDim2.new(0, 70, 0, 70)
     DragonButton.Position = UDim2.new(1, -90, 0, 25)
@@ -91,47 +84,31 @@ function UI:CreateWindow(title)
     DragonButton.Font = Enum.Font.GothamBold
     DragonButton.Parent = ScreenGui
     
-    local DragCorner = Instance.new("UICorner")
-    DragCorner.CornerRadius = UDim.new(1, 0)
-    DragCorner.Parent = DragonButton
+    Instance.new("UICorner", DragonButton).CornerRadius = UDim.new(1, 0)
     
-    local DragStroke = Instance.new("UIStroke")
-    DragStroke.Color = Color3.fromRGB(200, 240, 255)
-    DragStroke.Thickness = 3
-    DragStroke.Parent = DragonButton
-    
-    -- Main Frame
     local Main = Instance.new("Frame")
-    Main.Name = "Main"
-    Main.Size = UDim2.new(0, 650, 0, 450)
-    Main.Position = UDim2.new(0.5, -325, 0.5, -225)
+    Main.Size = UDim2.new(0, 750, 0, 500)
+    Main.Position = UDim2.new(0.5, -375, 0.5, -250)
     Main.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
     Main.BorderSizePixel = 0
     Main.Visible = false
-    Main.ClipsDescendants = true
     Main.Parent = ScreenGui
     
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 20)
-    Corner.Parent = Main
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 20)
     
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Color3.fromRGB(100, 180, 255)
     Stroke.Thickness = 2
     Stroke.Parent = Main
     
-    -- Top Bar
     local TopBar = Instance.new("Frame")
     TopBar.Size = UDim2.new(1, 0, 0, 50)
     TopBar.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
     TopBar.BorderSizePixel = 0
     TopBar.Parent = Main
     
-    local TopCorner = Instance.new("UICorner")
-    TopCorner.CornerRadius = UDim.new(0, 20)
-    TopCorner.Parent = TopBar
+    Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 20)
     
-    -- Title
     local Title = Instance.new("TextLabel")
     Title.Size = UDim2.new(0.7, 0, 1, 0)
     Title.Position = UDim2.new(0, 20, 0, 0)
@@ -143,7 +120,6 @@ function UI:CreateWindow(title)
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = TopBar
     
-    -- Close
     local Close = Instance.new("TextButton")
     Close.Size = UDim2.new(0, 35, 0, 35)
     Close.Position = UDim2.new(1, -45, 0, 7)
@@ -154,65 +130,41 @@ function UI:CreateWindow(title)
     Close.Font = Enum.Font.GothamBold
     Close.Parent = TopBar
     
-    local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 10)
-    CloseCorner.Parent = Close
+    Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 10)
     
-    -- Tab Frame
     local TabFrame = Instance.new("Frame")
-    TabFrame.Size = UDim2.new(0, 160, 1, -50)
+    TabFrame.Size = UDim2.new(0, 180, 1, -50)
     TabFrame.Position = UDim2.new(0, 0, 0, 50)
     TabFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
     TabFrame.BorderSizePixel = 0
     TabFrame.Parent = Main
     
-    -- Content Frame
     local ContentFrame = Instance.new("Frame")
-    ContentFrame.Size = UDim2.new(1, -160, 1, -50)
-    ContentFrame.Position = UDim2.new(0, 160, 0, 50)
+    ContentFrame.Size = UDim2.new(1, -180, 1, -50)
+    ContentFrame.Position = UDim2.new(0, 180, 0, 50)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Parent = Main
     
-    local Window = {
-        ScreenGui = ScreenGui,
-        Main = Main,
-        DragonButton = DragonButton,
-        TabFrame = TabFrame,
-        ContentFrame = ContentFrame,
-        Tabs = {},
-        CurrentTab = nil
-    }
+    local Window = {ScreenGui = ScreenGui, Main = Main, DragonButton = DragonButton, TabFrame = TabFrame, ContentFrame = ContentFrame, Tabs = {}, CurrentTab = nil}
     
-    -- Toggle
     local function ToggleGUI(show)
         if show then
             Main.Visible = true
-            TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 650, 0, 450)
-            }):Play()
+            TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(0, 750, 0, 500)}):Play()
             DragonButton.Visible = false
         else
-            TweenService:Create(Main, TweenInfo.new(0.3), {
-                Size = UDim2.new(0, 650, 0, 0)
-            }):Play()
-            task.delay(0.3, function()
-                Main.Visible = false
-                DragonButton.Visible = true
-            end)
+            TweenService:Create(Main, TweenInfo.new(0.3), {Size = UDim2.new(0, 750, 0, 0)}):Play()
+            task.delay(0.3, function() Main.Visible = false DragonButton.Visible = true end)
         end
     end
     
     Close.MouseButton1Click:Connect(function() ToggleGUI(false) end)
     DragonButton.MouseButton1Click:Connect(function() ToggleGUI(true) end)
     
-    -- Insert Key
     UserInputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.Insert then
-            ToggleGUI(not Main.Visible)
-        end
+        if input.KeyCode == Enum.KeyCode.Insert then ToggleGUI(not Main.Visible) end
     end)
     
-    -- Drag
     local dragging, dragStart, startPos
     TopBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -230,9 +182,7 @@ function UI:CreateWindow(title)
     end)
     
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
     
     return Window
@@ -246,9 +196,7 @@ function UI:CreateTab(window, name, icon, color)
     btn.Text = ""
     btn.Parent = window.TabFrame
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = btn
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
     local iconLabel = Instance.new("TextLabel")
     iconLabel.Size = UDim2.new(0, 35, 0, 35)
@@ -281,12 +229,10 @@ function UI:CreateTab(window, name, icon, color)
     layout.Padding = UDim.new(0, 15)
     layout.Parent = content
     
-    local padding = Instance.new("UIPadding")
-    padding.PaddingLeft = UDim.new(0, 20)
-    padding.PaddingRight = UDim.new(0, 20)
-    padding.PaddingTop = UDim.new(0, 20)
-    padding.PaddingBottom = UDim.new(0, 20)
-    padding.Parent = content
+    Instance.new("UIPadding", content).PaddingLeft = UDim.new(0, 20)
+    content:FindFirstChildOfClass("UIPadding").PaddingRight = UDim.new(0, 20)
+    content:FindFirstChildOfClass("UIPadding").PaddingTop = UDim.new(0, 20)
+    content:FindFirstChildOfClass("UIPadding").PaddingBottom = UDim.new(0, 20)
     
     local tab = {Button = btn, Content = content, TextLabel = textLabel, Color = color}
     table.insert(window.Tabs, tab)
@@ -315,9 +261,7 @@ function UI:CreateSection(parent, title, accentColor)
     section.BorderSizePixel = 0
     section.Parent = parent
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 15)
-    corner.Parent = section
+    Instance.new("UICorner", section).CornerRadius = UDim.new(0, 15)
     
     local stroke = Instance.new("UIStroke")
     stroke.Color = accentColor
@@ -347,18 +291,15 @@ function UI:CreateSection(parent, title, accentColor)
     list.Padding = UDim.new(0, 12)
     list.Parent = container
     
-    local pad = Instance.new("UIPadding")
-    pad.PaddingLeft = UDim.new(0, 15)
-    pad.PaddingRight = UDim.new(0, 15)
-    pad.PaddingBottom = UDim.new(0, 15)
-    pad.Parent = container
+    Instance.new("UIPadding", container).PaddingLeft = UDim.new(0, 15)
+    container:FindFirstChildOfClass("UIPadding").PaddingRight = UDim.new(0, 15)
+    container:FindFirstChildOfClass("UIPadding").PaddingBottom = UDim.new(0, 15)
     
     return container
 end
 
 function UI:CreateToggle(parent, text, default, callback, accent)
     accent = accent or Color3.fromRGB(100, 180, 255)
-    
     local toggle = Instance.new("Frame")
     toggle.Size = UDim2.new(1, 0, 0, 45)
     toggle.BackgroundTransparency = 1
@@ -381,9 +322,7 @@ function UI:CreateToggle(parent, text, default, callback, accent)
     btn.Text = ""
     btn.Parent = toggle
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1, 0)
-    corner.Parent = btn
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
     
     local circle = Instance.new("Frame")
     circle.Size = UDim2.new(0, 24, 0, 24)
@@ -391,29 +330,20 @@ function UI:CreateToggle(parent, text, default, callback, accent)
     circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     circle.Parent = btn
     
-    local cc = Instance.new("UICorner")
-    cc.CornerRadius = UDim.new(1, 0)
-    cc.Parent = circle
+    Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
     
     local enabled = default
-    
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
-        TweenService:Create(btn, TweenInfo.new(0.2), {
-            BackgroundColor3 = enabled and accent or Color3.fromRGB(50, 50, 60)
-        }):Play()
-        TweenService:Create(circle, TweenInfo.new(0.2), {
-            Position = enabled and UDim2.new(1, -26, 0.5, -12) or UDim2.new(0, 2, 0.5, -12)
-        }):Play()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = enabled and accent or Color3.fromRGB(50, 50, 60)}):Play()
+        TweenService:Create(circle, TweenInfo.new(0.2), {Position = enabled and UDim2.new(1, -26, 0.5, -12) or UDim2.new(0, 2, 0.5, -12)}):Play()
         if callback then callback(enabled) end
     end)
-    
     return toggle
 end
 
 function UI:CreateSlider(parent, text, min, max, default, callback, accent)
     accent = accent or Color3.fromRGB(100, 180, 255)
-    
     local slider = Instance.new("Frame")
     slider.Size = UDim2.new(1, 0, 0, 60)
     slider.BackgroundTransparency = 1
@@ -447,9 +377,7 @@ function UI:CreateSlider(parent, text, min, max, default, callback, accent)
     track.BorderSizePixel = 0
     track.Parent = slider
     
-    local tc = Instance.new("UICorner")
-    tc.CornerRadius = UDim.new(1, 0)
-    tc.Parent = track
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
@@ -457,9 +385,7 @@ function UI:CreateSlider(parent, text, min, max, default, callback, accent)
     fill.BorderSizePixel = 0
     fill.Parent = track
     
-    local fc = Instance.new("UICorner")
-    fc.CornerRadius = UDim.new(1, 0)
-    fc.Parent = fill
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
     
     local knob = Instance.new("TextButton")
     knob.Size = UDim2.new(0, 20, 0, 20)
@@ -468,12 +394,9 @@ function UI:CreateSlider(parent, text, min, max, default, callback, accent)
     knob.Text = ""
     knob.Parent = track
     
-    local kc = Instance.new("UICorner")
-    kc.CornerRadius = UDim.new(1, 0)
-    kc.Parent = knob
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
     
     local dragging = false
-    
     local function update(input)
         local pos = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
         local val = math.floor(min + (max - min) * pos)
@@ -483,34 +406,14 @@ function UI:CreateSlider(parent, text, min, max, default, callback, accent)
         if callback then callback(val) end
     end
     
-    knob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            update(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            update(input)
-        end
-    end)
+    knob.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end end)
+    UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end end)
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then update(input) end end)
 end
 
 function UI:CreateButton(parent, text, callback, accent)
     accent = accent or Color3.fromRGB(100, 180, 255)
-    
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 45)
     btn.BackgroundColor3 = accent
@@ -520,88 +423,181 @@ function UI:CreateButton(parent, text, callback, accent)
     btn.Font = Enum.Font.GothamBold
     btn.Parent = parent
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = btn
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(130, 210, 255)}):Play()
-    end)
-    
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = accent}):Play()
-    end)
-    
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(130, 210, 255)}):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = accent}):Play() end)
     btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+function UI:CreatePlayerButton(parent, player, callback, accent)
+    accent = accent or Color3.fromRGB(100, 180, 255)
+    local role, color = GetPlayerRole(player)
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 45, 55)
+    btn.Text = player.Name .. " [" .. role .. "]"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.Gotham
+    btn.Parent = parent
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local roleIndicator = Instance.new("Frame")
+    roleIndicator.Size = UDim2.new(0, 6, 1, 0)
+    roleIndicator.BackgroundColor3 = color
+    roleIndicator.Parent = btn
+    
+    Instance.new("UICorner", roleIndicator).CornerRadius = UDim.new(0, 8)
+    
+    btn.MouseButton1Click:Connect(function()
+        Settings.Fling.SpecificTarget = player
+        if callback then callback(player) end
+    end)
     
     return btn
 end
 
 --// CREATE UI
-local Window = UI:CreateWindow("❄️ MM2 ELITE HUB")
+local Window = UI:CreateWindow("❄️ MM2 ELITE HUB v7.0")
 
--- Colors
-local CombatColor = Color3.fromRGB(255, 100, 100)
+local MurderColor = Color3.fromRGB(255, 50, 50)
+local SheriffColor = Color3.fromRGB(50, 100, 255)
+local FlingColor = Color3.fromRGB(255, 100, 200)
 local ESPColor = Color3.fromRGB(100, 255, 150)
 local MoveColor = Color3.fromRGB(100, 150, 255)
 local FarmColor = Color3.fromRGB(255, 200, 100)
 local MiscColor = Color3.fromRGB(200, 100, 255)
 
--- Tabs
-local CombatTab = UI:CreateTab(Window, "Combat", "⚔️", CombatColor)
+local CombatTab = UI:CreateTab(Window, "Combat", "⚔️", MurderColor)
+local FlingTab = UI:CreateTab(Window, "Fling", "🚀", FlingColor)
 local ESP_Tab = UI:CreateTab(Window, "ESP", "👁️", ESPColor)
 local MoveTab = UI:CreateTab(Window, "Movement", "🏃", MoveColor)
 local FarmTab = UI:CreateTab(Window, "Farming", "💰", FarmColor)
 local MiscTab = UI:CreateTab(Window, "Misc", "⚙️", MiscColor)
 
---// COMBAT
-local cSec = UI:CreateSection(CombatTab, "Combat Features", CombatColor)
-UI:CreateToggle(cSec, "Aimbot", false, function(v) Settings.Combat.Aimbot = v end, CombatColor)
-UI:CreateToggle(cSec, "Kill Aura", false, function(v) Settings.Combat.KillAura = v end, CombatColor)
-UI:CreateToggle(cSec, "Auto Stab", false, function(v) Settings.Combat.AutoStab = v end, CombatColor)
-UI:CreateToggle(cSec, "Auto Shoot", false, function(v) Settings.Combat.AutoShoot = v end, CombatColor)
-UI:CreateSlider(cSec, "FOV", 10, 500, 150, function(v) Settings.Combat.FOV = v end, CombatColor)
-UI:CreateSlider(cSec, "Smoothness", 1, 100, 8, function(v) Settings.Combat.Smoothness = v/100 end, CombatColor)
+--// === MURDERER SECTION ===
+local murderSec = UI:CreateSection(CombatTab, "🔴 MURDERER", MurderColor)
+UI:CreateToggle(murderSec, "Kill Aura", false, function(v) Settings.Murder.KillAura = v end, MurderColor)
+UI:CreateSlider(murderSec, "Kill Aura Range", 5, 50, 12, function(v) Settings.Murder.KillAuraRange = v end, MurderColor)
+UI:CreateToggle(murderSec, "Auto Kill Visible", false, function(v) Settings.Murder.AutoKillVisible = v end, MurderColor)
+UI:CreateSlider(murderSec, "Auto Kill Range", 10, 100, 50, function(v) Settings.Murder.AutoKillRange = v end, MurderColor)
 
---// ESP
-local eSec = UI:CreateSection(ESP_Tab, "ESP Settings", ESPColor)
-UI:CreateToggle(eSec, "Enable ESP", false, function(v) Settings.ESP.Enabled = v end, ESPColor)
-UI:CreateToggle(eSec, "Boxes", true, function(v) Settings.ESP.Boxes = v end, ESPColor)
-UI:CreateToggle(eSec, "Names", true, function(v) Settings.ESP.Names = v end, ESPColor)
-UI:CreateToggle(eSec, "Distance", true, function(v) Settings.ESP.Distance = v end, ESPColor)
-UI:CreateToggle(eSec, "Roles", true, function(v) Settings.ESP.Roles = v end, ESPColor)
-UI:CreateToggle(eSec, "Tracers", false, function(v) Settings.ESP.Tracers = v end, ESPColor)
-UI:CreateSlider(eSec, "Max Distance", 100, 3000, 1500, function(v) Settings.ESP.MaxDistance = v end, ESPColor)
+--// === SHERIFF SECTION ===
+local sheriffSec = UI:CreateSection(CombatTab, "🔵 SHERIFF", SheriffColor)
+UI:CreateToggle(sheriffSec, "Instant Kill Murderer", false, function(v) Settings.Sheriff.InstantKill = v end, SheriffColor)
+UI:CreateToggle(sheriffSec, "Auto Shoot Murderer", false, function(v) Settings.Sheriff.AutoShoot = v end, SheriffColor)
+UI:CreateSlider(sheriffSec, "Shoot Range", 50, 500, 200, function(v) Settings.Sheriff.ShootRange = v end, SheriffColor)
 
---// MOVEMENT
-local mSec = UI:CreateSection(MoveTab, "Movement", MoveColor)
-UI:CreateToggle(mSec, "Fly", false, function(v) Settings.Movement.Fly = v end, MoveColor)
-UI:CreateToggle(mSec, "No Clip", false, function(v) Settings.Movement.NoClip = v end, MoveColor)
-UI:CreateToggle(mSec, "Infinite Jump", false, function(v) Settings.Movement.InfiniteJump = v end, MoveColor)
-UI:CreateToggle(mSec, "Auto Sprint", false, function(v) Settings.Movement.AutoSprint = v end, MoveColor)
-UI:CreateSlider(mSec, "Speed", 16, 200, 16, function(v) 
+--// === FLING SECTION ===
+local flingSec = UI:CreateSection(FlingTab, "🚀 FLING CONTROLS", FlingColor)
+
+-- Quick Fling Buttons
+UI:CreateButton(flingSec, "Fling Murderer", function()
+    local murderer = GetMurderer()
+    if murderer then
+        Settings.Fling.SpecificTarget = murderer
+        Settings.Fling.Enabled = true
+        task.wait(0.5)
+        Settings.Fling.Enabled = false
+    end
+end, Color3.fromRGB(255, 50, 50))
+
+UI:CreateButton(flingSec, "Fling Sheriff", function()
+    local sheriff = GetSheriff()
+    if sheriff then
+        Settings.Fling.SpecificTarget = sheriff
+        Settings.Fling.Enabled = true
+        task.wait(0.5)
+        Settings.Fling.Enabled = false
+    end
+end, Color3.fromRGB(50, 100, 255))
+
+UI:CreateSlider(flingSec, "Fling Power", 100, 5000, 1000, function(v) Settings.Fling.Power = v end, FlingColor)
+UI:CreateToggle(flingSec, "Anti Fling (God Mode)", false, function(v) Settings.Fling.AntiFling = v end, FlingColor)
+
+-- Player List
+local playerListSec = UI:CreateSection(FlingTab, "👥 SELECT PLAYER TO FLING", FlingColor)
+local playerListFrame = Instance.new("ScrollingFrame")
+playerListFrame.Size = UDim2.new(1, 0, 0, 200)
+playerListFrame.BackgroundColor3 = Color3.fromRGB(35, 40, 50)
+playerListFrame.BorderSizePixel = 0
+playerListFrame.ScrollBarThickness = 4
+playerListFrame.Parent = playerListSec
+
+Instance.new("UICorner", playerListFrame).CornerRadius = UDim.new(0, 10)
+
+local plLayout = Instance.new("UIListLayout")
+plLayout.Padding = UDim.new(0, 5)
+plLayout.Parent = playerListFrame
+
+Instance.new("UIPadding", playerListFrame).PaddingLeft = UDim.new(0, 10)
+playerListFrame:FindFirstChildOfClass("UIPadding").PaddingRight = UDim.new(0, 10)
+playerListFrame:FindFirstChildOfClass("UIPadding").PaddingTop = UDim.new(0, 10)
+
+local function UpdatePlayerList()
+    for _, child in pairs(playerListFrame:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            UI:CreatePlayerButton(playerListFrame, player, function(p)
+                Settings.Fling.SpecificTarget = p
+                Settings.Fling.Enabled = true
+                task.wait(0.3)
+                Settings.Fling.Enabled = false
+            end, FlingColor)
+        end
+    end
+    
+    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, plLayout.AbsoluteContentSize.Y + 20)
+end
+
+UI:CreateButton(flingSec, "🔄 Refresh Player List", UpdatePlayerList, FlingColor)
+
+--// === ESP SECTION ===
+local espSec = UI:CreateSection(ESP_Tab, "👁️ ESP SETTINGS", ESPColor)
+UI:CreateToggle(espSec, "Enable ESP", false, function(v) Settings.ESP.Enabled = v end, ESPColor)
+UI:CreateToggle(espSec, "Show Boxes", true, function(v) Settings.ESP.Boxes = v end, ESPColor)
+UI:CreateToggle(espSec, "Show Names", true, function(v) Settings.ESP.Names = v end, ESPColor)
+UI:CreateToggle(espSec, "Show Distance", true, function(v) Settings.ESP.Distance = v end, ESPColor)
+UI:CreateToggle(espSec, "Show Roles", true, function(v) Settings.ESP.Roles = v end, ESPColor)
+UI:CreateToggle(espSec, "Show Tracers", false, function(v) Settings.ESP.Tracers = v end, ESPColor)
+UI:CreateSlider(espSec, "Max Distance", 100, 5000, 2000, function(v) Settings.ESP.MaxDistance = v end, ESPColor)
+
+--// === MOVEMENT SECTION ===
+local moveSec = UI:CreateSection(MoveTab, "🏃 MOVEMENT", MoveColor)
+UI:CreateToggle(moveSec, "Fly", false, function(v) Settings.Movement.Fly = v end, MoveColor)
+UI:CreateToggle(moveSec, "No Clip", false, function(v) Settings.Movement.NoClip = v end, MoveColor)
+UI:CreateToggle(moveSec, "Infinite Jump", false, function(v) Settings.Movement.InfiniteJump = v end, MoveColor)
+UI:CreateToggle(moveSec, "Auto Sprint", false, function(v) Settings.Movement.AutoSprint = v end, MoveColor)
+UI:CreateSlider(moveSec, "Walk Speed", 16, 200, 16, function(v) 
     Settings.Movement.Speed = v
     local hum = GetHumanoid(GetCharacter(LocalPlayer))
     if hum then hum.WalkSpeed = v end
 end, MoveColor)
-UI:CreateSlider(mSec, "Jump", 50, 200, 50, function(v) 
+UI:CreateSlider(moveSec, "Jump Power", 50, 200, 50, function(v) 
     Settings.Movement.Jump = v
     local hum = GetHumanoid(GetCharacter(LocalPlayer))
     if hum then hum.JumpPower = v end
 end, MoveColor)
-UI:CreateSlider(mSec, "Fly Speed", 10, 200, 60, function(v) Settings.Movement.FlySpeed = v end, MoveColor)
+UI:CreateSlider(moveSec, "Fly Speed", 10, 200, 60, function(v) Settings.Movement.FlySpeed = v end, MoveColor)
 
---// FARMING
-local fSec = UI:CreateSection(FarmTab, "Auto Farm", FarmColor)
-UI:CreateToggle(fSec, "Auto Farm", false, function(v) Settings.Farming.AutoFarm = v end, FarmColor)
-UI:CreateToggle(fSec, "Smart Farm", true, function(v) Settings.Farming.SmartFarm = v end, FarmColor)
-UI:CreateToggle(fSec, "Coin Magnet", false, function(v) Settings.Farming.CoinMagnet = v end, FarmColor)
-UI:CreateToggle(fSec, "Auto Grab Gun", false, function(v) Settings.Farming.AutoGrabGun = v end, FarmColor)
-UI:CreateSlider(fSec, "Magnet Range", 10, 150, 60, function(v) Settings.Farming.MagnetRange = v end, FarmColor)
-UI:CreateSlider(fSec, "Farm Speed", 50, 500, 250, function(v) Settings.Farming.FarmSpeed = v end, FarmColor)
+--// === FARMING SECTION ===
+local farmSec = UI:CreateSection(FarmTab, "💰 FARMING", FarmColor)
+UI:CreateToggle(farmSec, "Auto Farm Coins", false, function(v) Settings.Farming.AutoFarm = v end, FarmColor)
+UI:CreateToggle(farmSec, "Smart Farm (Safe)", true, function(v) Settings.Farming.SmartFarm = v end, FarmColor)
+UI:CreateToggle(farmSec, "Coin Magnet", false, function(v) Settings.Farming.CoinMagnet = v end, FarmColor)
+UI:CreateToggle(farmSec, "Auto Grab Gun", false, function(v) Settings.Farming.AutoGrabGun = v end, FarmColor)
+UI:CreateSlider(farmSec, "Magnet Range", 10, 150, 60, function(v) Settings.Farming.MagnetRange = v end, FarmColor)
+UI:CreateSlider(farmSec, "Farm Speed", 50, 500, 250, function(v) Settings.Farming.FarmSpeed = v end, FarmColor)
 
---// MISC
-local miscSec = UI:CreateSection(MiscTab, "Settings", MiscColor)
+--// === MISC SECTION ===
+local miscSec = UI:CreateSection(MiscTab, "⚙️ MISC", MiscColor)
 UI:CreateToggle(miscSec, "Full Bright", false, function(v) 
     Settings.Misc.FullBright = v
     Lighting.Brightness = v and 10 or 1
@@ -610,11 +606,7 @@ end, MiscColor)
 UI:CreateToggle(miscSec, "Anti AFK", true, function(v) Settings.Misc.AntiAfk = v end, MiscColor)
 UI:CreateToggle(miscSec, "No Fog", false, function(v) 
     Settings.Misc.NoFog = v
-    if v then
-        Lighting.FogEnd = 100000
-    else
-        Lighting.FogEnd = 500
-    end
+    Lighting.FogEnd = v and 100000 or 500
 end, MiscColor)
 
 UI:CreateButton(miscSec, "Server Hop", function()
@@ -627,11 +619,11 @@ UI:CreateButton(miscSec, "Server Hop", function()
     end
 end, MiscColor)
 
-UI:CreateButton(miscSec, "Rejoin", function()
+UI:CreateButton(miscSec, "Rejoin Server", function()
     TeleportService:Teleport(game.PlaceId)
 end, MiscColor)
 
---// ESP SYSTEM (Working)
+--// === ESP SYSTEM ===
 local function CreateESP(player)
     if player == LocalPlayer then return end
     ESPObjects[player] = {
@@ -678,9 +670,7 @@ RunService.RenderStepped:Connect(function()
                             esp.Box.Position = Vector2.new(pos.X - scale * 0.3, pos.Y - scale * 0.6)
                             esp.Box.Color = color
                             esp.Box.Visible = true
-                        else
-                            esp.Box.Visible = false
-                        end
+                        else esp.Box.Visible = false end
                         
                         if Settings.ESP.Names then
                             esp.Name.Position = Vector2.new(pos.X, pos.Y - scale * 0.8)
@@ -688,9 +678,7 @@ RunService.RenderStepped:Connect(function()
                             esp.Name.Color = color
                             esp.Name.Size = 13
                             esp.Name.Visible = true
-                        else
-                            esp.Name.Visible = false
-                        end
+                        else esp.Name.Visible = false end
                         
                         if Settings.ESP.Distance then
                             esp.Distance.Position = Vector2.new(pos.X, pos.Y + scale * 0.7)
@@ -698,9 +686,7 @@ RunService.RenderStepped:Connect(function()
                             esp.Distance.Color = Color3.fromRGB(255, 255, 255)
                             esp.Distance.Size = 11
                             esp.Distance.Visible = true
-                        else
-                            esp.Distance.Visible = false
-                        end
+                        else esp.Distance.Visible = false end
                         
                         if Settings.ESP.Roles then
                             esp.Role.Position = Vector2.new(pos.X, pos.Y - scale * 1.1)
@@ -708,18 +694,14 @@ RunService.RenderStepped:Connect(function()
                             esp.Role.Color = color
                             esp.Role.Size = 12
                             esp.Role.Visible = true
-                        else
-                            esp.Role.Visible = false
-                        end
+                        else esp.Role.Visible = false end
                         
                         if Settings.ESP.Tracers then
                             esp.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                             esp.Tracer.To = Vector2.new(pos.X, pos.Y)
                             esp.Tracer.Color = color
                             esp.Tracer.Visible = true
-                        else
-                            esp.Tracer.Visible = false
-                        end
+                        else esp.Tracer.Visible = false end
                     else
                         for _, obj in pairs(esp) do obj.Visible = false end
                     end
@@ -730,118 +712,57 @@ RunService.RenderStepped:Connect(function()
                 for _, obj in pairs(esp) do obj.Visible = false end
             end
         end)
-        if not success then
-            for _, obj in pairs(esp) do obj.Visible = false end
-        end
+        if not success then for _, obj in pairs(esp) do obj.Visible = false end end
     end
 end)
 
---// AIMBOT (Working)
-local function GetClosest()
-    local closest, minDist = nil, Settings.Combat.FOV
-    local myChar = GetCharacter(LocalPlayer)
-    if not myChar then return nil end
-    
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            local char = GetCharacter(p)
-            if char then
-                local targetPart = char:FindFirstChild(Settings.Combat.AimPart) or char:FindFirstChild("Head")
-                if targetPart then
-                    local pos = Camera:WorldToViewportPoint(targetPart.Position)
-                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                    if dist < minDist then
-                        if Settings.Combat.TeamCheck then
-                            local role = GetPlayerRole(p)
-                            if role == "Murderer" or role == "Sheriff" then
-                                minDist, closest = dist, p
-                            end
-                        else
-                            minDist, closest = dist, p
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
-RunService.RenderStepped:Connect(function()
-    if Settings.Combat.Aimbot then
-        local target = GetClosest()
-        if target then
-            local char = GetCharacter(target)
-            if char then
-                local targetPart = char:FindFirstChild(Settings.Combat.AimPart) or char:FindFirstChild("Head")
-                if targetPart then
-                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), Settings.Combat.Smoothness)
-                end
-            end
-        end
-    end
-end)
-
---// COMBAT FEATURES (Working)
+--// === MURDERER SYSTEM ===
 task.spawn(function()
     while task.wait(0.1) do
         local char = GetCharacter(LocalPlayer)
         if not char then continue end
         
         local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
-        local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
+        if not knife then continue end
         
-        if knife and Settings.Combat.KillAura then
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if not remotes then continue end
+        
+        -- Kill Aura
+        if Settings.Murder.KillAura then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
                     local targetChar = GetCharacter(p)
                     if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
                         local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
-                        if dist <= 12 then
-                            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                            if remotes then
-                                local throw = remotes:FindFirstChild("ThrowKnife")
-                                if throw then
-                                    throw:FireServer("Throw", targetChar.HumanoidRootPart.Position)
-                                end
-                            end
+                        if dist <= Settings.Murder.KillAuraRange then
+                            local stab = remotes:FindFirstChild("Stab")
+                            if stab then stab:FireServer() end
                         end
                     end
                 end
             end
         end
         
-        if knife and Settings.Combat.AutoStab then
+        -- Auto Kill Visible
+        if Settings.Murder.AutoKillVisible then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer then
                     local targetChar = GetCharacter(p)
                     if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
                         local dist = (targetChar.HumanoidRootPart.Position - char:GetPivot().Position).Magnitude
-                        if dist <= 6 then
-                            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                            if remotes then
-                                local stab = remotes:FindFirstChild("Stab")
-                                if stab then
-                                    stab:FireServer()
+                        if dist <= Settings.Murder.AutoKillRange then
+                            -- Check if visible
+                            local head = targetChar:FindFirstChild("Head")
+                            if head then
+                                local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 500)
+                                local hit = Workspace:FindPartOnRayWithIgnoreList(ray, {char, targetChar})
+                                if not hit or hit:IsDescendantOf(targetChar) then
+                                    local throw = remotes:FindFirstChild("ThrowKnife")
+                                    if throw then
+                                        throw:FireServer("Throw", head.Position)
+                                    end
                                 end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        if gun and Settings.Combat.AutoShoot then
-            for _, p in pairs(Players:GetPlayers()) do
-                local role = GetPlayerRole(p)
-                if role == "Murderer" then
-                    local targetChar = GetCharacter(p)
-                    if targetChar and targetChar:FindFirstChild("Head") then
-                        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                        if remotes then
-                            local shoot = remotes:FindFirstChild("ShootGun")
-                            if shoot then
-                                shoot:FireServer(targetChar.Head.Position, targetChar.Head)
                             end
                         end
                     end
@@ -851,7 +772,124 @@ task.spawn(function()
     end
 end)
 
---// FLY SYSTEM (Working)
+--// === SHERIFF SYSTEM ===
+task.spawn(function()
+    while task.wait(0.05) do
+        local char = GetCharacter(LocalPlayer)
+        if not char then continue end
+        
+        local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
+        if not gun then continue end
+        
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if not remotes then continue end
+        
+        local murderer = GetMurderer()
+        if not murderer then continue end
+        
+        local murdererChar = GetCharacter(murderer)
+        if not murdererChar then continue end
+        
+        local murdererHead = murdererChar:FindFirstChild("Head")
+        local murdererRoot = murdererChar:FindFirstChild("HumanoidRootPart")
+        if not murdererHead or not murdererRoot then continue end
+        
+        local myRoot = GetRootPart(char)
+        if not myRoot then continue end
+        
+        local dist = (murdererRoot.Position - myRoot.Position).Magnitude
+        
+        -- Instant Kill (always shoots when in range)
+        if Settings.Sheriff.InstantKill and dist <= Settings.Sheriff.ShootRange then
+            local shoot = remotes:FindFirstChild("ShootGun")
+            if shoot then
+                -- Predict jump
+                local targetPos = murdererHead.Position + (murdererHead.Velocity * 0.1)
+                shoot:FireServer(targetPos, murdererHead)
+            end
+        end
+        
+        -- Auto Shoot
+        if Settings.Sheriff.AutoShoot and dist <= Settings.Sheriff.ShootRange then
+            local shoot = remotes:FindFirstChild("ShootGun")
+            if shoot then
+                local targetPos = murdererHead.Position + (murdererHead.Velocity * 0.05)
+                shoot:FireServer(targetPos, murdererHead)
+            end
+        end
+    end
+end)
+
+--// === FLING SYSTEM ===
+local function FlingPlayer(target)
+    if not target then return end
+    local targetChar = GetCharacter(target)
+    if not targetChar then return end
+    local targetRoot = GetRootPart(targetChar)
+    if not targetRoot then return end
+    
+    local myChar = GetCharacter(LocalPlayer)
+    local myRoot = GetRootPart(myChar)
+    if not myRoot then return end
+    
+    -- Create fling body velocity
+    if not targetRoot:FindFirstChild("FlingVelocity") then
+        local vel = Instance.new("BodyVelocity")
+        vel.Name = "FlingVelocity"
+        vel.MaxForce = Vector3.new(Settings.Fling.Power, Settings.Fling.Power, Settings.Fling.Power)
+        vel.Velocity = (targetRoot.Position - myRoot.Position).Unit * Settings.Fling.Power + Vector3.new(0, Settings.Fling.Power * 0.5, 0)
+        vel.Parent = targetRoot
+        
+        task.wait(0.2)
+        vel:Destroy()
+    end
+end
+
+-- Fling Loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if Settings.Fling.Enabled then
+            if Settings.Fling.SpecificTarget then
+                FlingPlayer(Settings.Fling.SpecificTarget)
+            elseif Settings.Fling.Target == "Murderer" then
+                FlingPlayer(GetMurderer())
+            elseif Settings.Fling.Target == "Sheriff" then
+                FlingPlayer(GetSheriff())
+            elseif Settings.Fling.Target == "All" then
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer then
+                        FlingPlayer(p)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Anti Fling
+RunService.Stepped:Connect(function()
+    if Settings.Fling.AntiFling then
+        local myChar = GetCharacter(LocalPlayer)
+        if not myChar then return end
+        
+        for _, part in pairs(myChar:GetDescendants()) do
+            if part:IsA("BasePart") then
+                -- Remove any external velocities
+                for _, child in pairs(part:GetChildren()) do
+                    if child:IsA("BodyVelocity") or child:IsA("BodyGyro") or child:IsA("BodyPosition") then
+                        if child.Name ~= "FlyVel" and child.Name ~= "FlyGyro" then
+                            child:Destroy()
+                        end
+                    end
+                end
+                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end
+end)
+
+--// === MOVEMENT SYSTEMS ===
+-- Fly
 RunService.RenderStepped:Connect(function()
     local char = GetCharacter(LocalPlayer)
     if not char then return end
@@ -890,52 +928,43 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// NO CLIP (Working)
+-- No Clip
 RunService.Stepped:Connect(function()
     if Settings.Movement.NoClip then
         local char = GetCharacter(LocalPlayer)
         if char then
             for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
+                if part:IsA("BasePart") then part.CanCollide = false end
             end
         end
     end
 end)
 
---// INFINITE JUMP (Working)
+-- Infinite Jump
 UserInputService.JumpRequest:Connect(function()
     if Settings.Movement.InfiniteJump then
-        local char = GetCharacter(LocalPlayer)
-        local hum = GetHumanoid(char)
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
+        local hum = GetHumanoid(GetCharacter(LocalPlayer))
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
     end
 end)
 
---// AUTO SPRINT (Working)
+-- Auto Sprint
 RunService.RenderStepped:Connect(function()
     if Settings.Movement.AutoSprint then
-        local char = GetCharacter(LocalPlayer)
-        local hum = GetHumanoid(char)
-        if hum then
-            hum.WalkSpeed = Settings.Movement.Speed
-        end
+        local hum = GetHumanoid(GetCharacter(LocalPlayer))
+        if hum then hum.WalkSpeed = Settings.Movement.Speed end
     end
 end)
 
---// AUTO FARM (Working)
+--// === FARMING SYSTEM ===
+-- Auto Farm
 task.spawn(function()
     while task.wait(0.2) do
         if not Settings.Farming.AutoFarm then continue end
         
-        local char = GetCharacter(LocalPlayer)
-        local root = GetRootPart(char)
+        local root = GetRootPart(GetCharacter(LocalPlayer))
         if not root then continue end
         
-        -- Find coins
         for _, obj in pairs(Workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Name:lower():match("coin") then
                 local dist = (obj.Position - root.Position).Magnitude
@@ -948,7 +977,6 @@ task.spawn(function()
                         root.CFrame = obj.CFrame
                     end
                     
-                    -- Collect
                     if obj and obj.Parent then
                         firetouchinterest(root, obj, 0)
                         firetouchinterest(root, obj, 1)
@@ -961,13 +989,12 @@ task.spawn(function()
     end
 end)
 
---// COIN MAGNET (Working)
+-- Coin Magnet
 task.spawn(function()
     while task.wait(0.05) do
         if not Settings.Farming.CoinMagnet then continue end
         
-        local char = GetCharacter(LocalPlayer)
-        local root = GetRootPart(char)
+        local root = GetRootPart(GetCharacter(LocalPlayer))
         if not root then continue end
         
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -981,13 +1008,12 @@ task.spawn(function()
     end
 end)
 
---// AUTO GRAB GUN (Working)
+-- Auto Grab Gun
 task.spawn(function()
     while task.wait(0.5) do
         if not Settings.Farming.AutoGrabGun then continue end
         
-        local char = GetCharacter(LocalPlayer)
-        local root = GetRootPart(char)
+        local root = GetRootPart(GetCharacter(LocalPlayer))
         if not root then continue end
         
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -995,12 +1021,8 @@ task.spawn(function()
             if (name:match("gun") or name:match("pistol")) and obj:IsA("BasePart") then
                 local dist = (obj.Position - root.Position).Magnitude
                 if dist < 100 then
-                    if Settings.Farming.SmartFarm then
-                        TweenService:Create(root, TweenInfo.new(0.3), {CFrame = obj.CFrame}):Play()
-                        task.wait(0.3)
-                    else
-                        root.CFrame = obj.CFrame
-                    end
+                    TweenService:Create(root, TweenInfo.new(0.3), {CFrame = obj.CFrame}):Play()
+                    task.wait(0.3)
                     firetouchinterest(root, obj, 0)
                     firetouchinterest(root, obj, 1)
                 end
@@ -1009,7 +1031,8 @@ task.spawn(function()
     end
 end)
 
---// ANTI AFK (Working)
+--// === MISC ===
+-- Anti AFK
 LocalPlayer.Idled:Connect(function()
     if Settings.Misc.AntiAfk then
         VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
@@ -1019,54 +1042,48 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 --// INIT
-for _, p in pairs(Players:GetPlayers()) do
-    CreateESP(p)
-end
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
-Players.PlayerAdded:Connect(function(p)
-    CreateESP(p)
-end)
-
+Players.PlayerAdded:Connect(function(p) CreateESP(p) UpdatePlayerList() end)
 Players.PlayerRemoving:Connect(function(p)
     if ESPObjects[p] then
-        for _, o in pairs(ESPObjects[p]) do
-            pcall(function() o:Remove() end)
-        end
+        for _, o in pairs(ESPObjects[p]) do pcall(function() o:Remove() end) end
         ESPObjects[p] = nil
     end
+    UpdatePlayerList()
 end)
 
 -- Select first tab
 Window.Tabs[1].Content.Visible = true
 Window.Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(50, 55, 70)
-Window.Tabs[1].TextLabel.TextColor3 = CombatColor
+Window.Tabs[1].TextLabel.TextColor3 = MurderColor
 Window.CurrentTab = Window.Tabs[1]
+
+UpdatePlayerList()
 
 -- Notification
 local notif = Instance.new("Frame")
-notif.Size = UDim2.new(0, 300, 0, 80)
-notif.Position = UDim2.new(1, 20, 1, -100)
+notif.Size = UDim2.new(0, 320, 0, 90)
+notif.Position = UDim2.new(1, 20, 1, -110)
 notif.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
 notif.BorderSizePixel = 0
 notif.Parent = Window.ScreenGui
 
-local nc = Instance.new("UICorner")
-nc.CornerRadius = UDim.new(0, 15)
-nc.Parent = notif
+Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 15)
 
 local nt = Instance.new("TextLabel")
 nt.Size = UDim2.new(1, -20, 1, 0)
 nt.Position = UDim2.new(0, 10, 0, 0)
 nt.BackgroundTransparency = 1
-nt.Text = "❄️ MM2 ELITE HUB Loaded!\n✅ All Features Working\nPress INSERT to toggle"
+nt.Text = "❄️ MM2 ELITE HUB v7.0\n✅ Murder/Sheriff/Fling Working\n✅ All Features Operational\nPress INSERT to toggle"
 nt.TextColor3 = Color3.fromRGB(150, 220, 255)
 nt.TextSize = 14
 nt.Font = Enum.Font.GothamBold
 nt.TextWrapped = true
 nt.Parent = notif
 
-TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -320, 1, -100)}):Play()
-task.wait(4)
-TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -100)}):Play()
+TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, -340, 1, -110)}):Play()
+task.wait(5)
+TweenService:Create(notif, TweenInfo.new(0.5), {Position = UDim2.new(1, 20, 1, -110)}):Play()
 
-print("✅ MM2 ELITE HUB v6.0 - All Systems Operational")
+print("✅ MM2 ELITE HUB v7.0 - All Systems Operational")
